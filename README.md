@@ -35,10 +35,12 @@ GitHub 저장소의 역사를 **한 단계씩 걸으며 해설해주는** Claude
 
 ## 요구 사항
 
-- [Claude Code](https://claude.com/claude-code)
+- [Claude Code](https://claude.com/claude-code) 또는 [Codex CLI](https://github.com/openai/codex)
 - [`gh` CLI](https://cli.github.com/), 인증 완료 (`gh auth login`)
 
 ## 설치
+
+### Claude Code
 
 ```
 /plugin marketplace add hyeongyu-data/repo-walk
@@ -46,6 +48,18 @@ GitHub 저장소의 역사를 **한 단계씩 걸으며 해설해주는** Claude
 ```
 
 또는 클론한 뒤 Claude Code가 그 디렉터리를 가리키게 합니다.
+
+### Codex CLI
+
+커맨드 본문이 그대로 Codex 커스텀 프롬프트로 동작합니다(`gh` 호출 + `$ARGUMENTS`
+공통). 저장소를 클론한 뒤 프롬프트를 `~/.codex/prompts/`로 복사하면 됩니다:
+
+```
+cp codex/prompts/repo-walk.md ~/.codex/prompts/repo-walk.md
+```
+
+이후 Codex에서 `/repo-walk owner/repo`로 호출합니다. (`codex/prompts/repo-walk.md`는
+`commands/repo-walk.md`를 가리키는 심링크라 커맨드가 바뀌면 양쪽이 함께 갱신됩니다.)
 
 ## 사용법
 

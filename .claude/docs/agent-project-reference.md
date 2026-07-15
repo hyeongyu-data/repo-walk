@@ -19,6 +19,9 @@ repo-walk/
 │   └── marketplace.json     # /plugin marketplace add 용 매니페스트
 ├── commands/
 │   └── repo-walk.md         # 커맨드 정의 = 프롬프트 = 전체 로직 (실행 바이너리 없음)
+├── codex/
+│   └── prompts/
+│       └── repo-walk.md → ../../commands/repo-walk.md   # Codex 커스텀 프롬프트(심링크, 단일 소스)
 ├── .claude/
 │   └── docs/                # 에이전트 작업 가이드 (이 문서 포함)
 ├── .github/

@@ -1,5 +1,6 @@
 {
   "name": "repo-walk",
+  "description": "GitHub 저장소의 역사를 한 단계씩 걸으며 Claude가 해설합니다. 기본은 PR 중심(왜 → 무엇을 → 어떻게), --timeline은 순수 시간순 모드.",
   "owner": {
     "name": "hyeongyu-data"
   },
@@ -7,7 +8,7 @@
     {
       "name": "repo-walk",
       "source": "./",
-      "description": "GitHub 저장소의 역사를 한 단계씩 걸으며 Claude가 해설합니다 (기본 PR 중심, --timeline은 순수 시간순)."
+      "description": "GitHub 저장소의 역사를 한 단계씩 걸으며 Claude가 해설합니다. 기본은 PR 중심(왜 → 무엇을 → 어떻게), --timeline은 순수 시간순 모드."
     }
   ]
 }

@@ -24,6 +24,7 @@ repo-walk/
 ├── .github/
 │   ├── ISSUE_TEMPLATE/      # bug / feature / experiment / config
 │   └── PULL_REQUEST_TEMPLATE.md
+├── .gitignore               # 로컬 순회 상태(.repo-walk/) 제외
 ├── CLAUDE.md                # 에이전트 진입점 (핵심 규칙 + 문서 탐색표)
 ├── AGENTS.md → CLAUDE.md    # 심링크
 ├── .agents → .claude        # 심링크 (진입점 별칭)
@@ -41,6 +42,7 @@ repo-walk/
 | `AGENTS.md` | 에이전트 핵심 규칙·탐색표 | `.claude/docs/` 전체 |
 | `README.md` | 사용자 문서 | 동작을 바꾼 모든 변경 |
 | `.github/` | 이슈·PR 템플릿 | `agent-workflow-reference.md` |
+| `.gitignore` | 로컬 순회 상태·민감 로컬 산출물 제외 | `agent-security-guidelines.md` |
 
 ## 핵심 원칙
 

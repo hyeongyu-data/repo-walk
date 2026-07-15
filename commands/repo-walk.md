@@ -37,17 +37,22 @@ allowed-tools: Bash(gh:*), Read, Write
 ### 기본 — PR 중심 (권장 이해 단위)
 
 PR이 자연스러운 단위입니다: 연결된 **이슈**는 *왜*를, PR 본문은 *무엇을*,
-안의 **커밋**들은 *어떻게*를 담습니다. 머지된 PR을 시간순으로 로드합니다:
+안의 **커밋**들은 *어떻게*를 담습니다. **수집한 PR 집합을 정렬한 뒤**
+`--limit`을 적용합니다. `gh pr list --limit N`은 최신 PR N개를 먼저 자르므로
+여기에 사용하면 안 됩니다.
 
 ```bash
-gh pr list -R OWNER/REPO --state merged --limit LIMIT \
+# 최근 순으로 잘리는 기본값을 피하기 위해 최대 1,000개를 먼저 가져온다.
+# LIMIT은 파싱한 양의 정수로 치환하고, `--limit`은 정렬 후에 적용한다.
+gh pr list -R OWNER/REPO --state merged --limit 1000 \
   --json number,title,createdAt,mergedAt,body,url \
-  --jq 'sort_by(.mergedAt) | .[]'
+  --jq 'sort_by(.mergedAt) | .[:LIMIT] | .[]'
 ```
 
 `--path`가 주어지면 그 경로를 건드리는 PR을 우선합니다(`gh pr diff`의 파일
-목록으로 필터 폴백). `--since`가 있으면 그보다 오래된 것은 제외합니다. 각각을
-단위로 저장: `{type:"pr", id, title, mergedAt, body, url}`.
+목록으로 필터 폴백). `--since`가 있으면 그보다 오래된 것은 제외합니다. 두 필터도
+**정렬·`--limit` 전에** 적용합니다. 각각을 단위로 저장:
+`{type:"pr", id, title, mergedAt, body, url}`.
 
 ### `--timeline` — 순수 시간순 (사용자가 선택함)
 

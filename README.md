@@ -1,67 +1,66 @@
 # repo-walk
 
-A Claude Code plugin that walks a GitHub repository's history **one step at a
-time and narrates it** — not just listing commits/issues/PRs, but explaining
-*why* each change happened, *what* it did, and *how* it builds on what came
-before.
+GitHub 저장소의 역사를 **한 단계씩 걸으며 해설해주는** Claude Code 플러그인.
+커밋·이슈·PR을 그냥 나열하는 게 아니라, 각 변경이 *왜* 생겼고, *무엇을* 했으며,
+앞의 것 위에 *어떻게* 쌓였는지 설명합니다.
 
-`git log` and `gh` already list history. This plugin is the part that
-**explains** it — using Claude to turn a repo's evolution into a guided,
-step-by-step read. Great for onboarding onto an unfamiliar codebase or studying
-how a well-made project grew.
+`git log`와 `gh`는 이미 역사를 나열합니다. 이 플러그인은 그걸 Claude로 **설명**
+하는 부분이에요 — 저장소의 발전 과정을 안내받으며 한 단계씩 읽게 해줍니다.
+낯선 코드베이스에 적응하거나, 잘 만든 프로젝트가 어떻게 자랐는지 학습할 때
+좋습니다.
 
-## How it works
+## 동작 방식
 
-It's a thin wrapper: `gh` fetches the data, Claude does the narration. No server,
-no API keys, no database — just one slash command.
+얇은 래퍼입니다: `gh`가 데이터를 가져오고, Claude가 해설합니다. 서버·API 키·
+데이터베이스 없이 슬래시 커맨드 하나뿐입니다.
 
-- **PR-centric by default** — a PR is the natural unit of understanding: the
-  linked issue says *why*, the PR body says *what*, the commits inside say *how*.
-  It walks merged PRs in chronological order.
-- **`--timeline` mode** — pure chronological: interleaves commits, issues, and
-  PRs on a single time axis (noisier on big repos, but that's the point of the mode).
-- **Scoped by design** — nobody reads a kernel from commit #1. Defaults to the
-  most recent 15 units; narrow with `--limit`, `--path`, `--since`.
-- **Resumable** — progress is saved to a local cursor file, so you can walk a
-  long history across several sittings with `... next`.
+- **기본은 PR 중심** — PR이 자연스러운 이해 단위입니다: 연결된 이슈는 *왜*를,
+  PR 본문은 *무엇을*, 안의 커밋들은 *어떻게*를 담습니다. 머지된 PR을 시간순으로
+  걷습니다.
+- **`--timeline` 모드** — 순수 시간순: 커밋·이슈·PR을 하나의 시간축에 뒤섞습니다
+  (대형 저장소에서는 어수선하지만, 그게 이 모드의 취지입니다).
+- **의도적으로 스코프 제한** — 아무도 커널을 커밋 1번부터 읽지 않습니다. 기본은
+  최근 15개 단위이고, `--limit`·`--path`·`--since`로 좁힙니다.
+- **이어보기 가능** — 진행 상태를 로컬 커서 파일에 저장하므로, 긴 역사를 여러
+  번에 나눠 `... next`로 이어 걸을 수 있습니다.
 
-## Requirements
+## 요구 사항
 
 - [Claude Code](https://claude.com/claude-code)
-- [`gh` CLI](https://cli.github.com/), authenticated (`gh auth login`)
+- [`gh` CLI](https://cli.github.com/), 인증 완료 (`gh auth login`)
 
-## Install
+## 설치
 
 ```
 /plugin marketplace add hyeongyu-data/repo-walk
 /plugin install repo-walk
 ```
 
-Or clone and point Claude Code at the directory.
+또는 클론한 뒤 Claude Code가 그 디렉터리를 가리키게 합니다.
 
-## Usage
+## 사용법
 
 ```
-/repo-walk owner/repo                     # PR-centric walk, recent 15 PRs
-/repo-walk owner/repo --timeline          # pure chronological (commits+issues+PRs)
-/repo-walk owner/repo --path src/auth     # only history touching a path
-/repo-walk owner/repo --since 2024-01-01  # only recent history
+/repo-walk owner/repo                     # PR 중심 순회, 최근 15개 PR
+/repo-walk owner/repo --timeline          # 순수 시간순 (커밋+이슈+PR)
+/repo-walk owner/repo --path src/auth     # 특정 경로를 건드리는 역사만
+/repo-walk owner/repo --since 2024-01-01  # 최근 역사만
 /repo-walk owner/repo --limit 40 --batch 5
-/repo-walk owner/repo next                # continue from where you left off
-/repo-walk owner/repo reset               # start over
+/repo-walk owner/repo next                # 멈춘 지점부터 이어가기
+/repo-walk owner/repo reset               # 처음부터 다시
 ```
 
-While walking, you can also just ask things like *"show me the diff for #123"* or
-*"why was this needed?"* — Claude has the context loaded.
+순회 중에는 *"#123 diff 보여줘"*, *"이건 왜 필요했어?"* 처럼 그냥 물어봐도 됩니다
+— Claude가 맥락을 이미 로드해 두었습니다.
 
-## What it deliberately does NOT do
+## 일부러 하지 않는 것
 
-Kept lazy on purpose (add later only if actually needed):
+의도적으로 게으르게 유지했습니다(정말 필요해질 때만 나중에 추가):
 
-- No full "walk every commit from #1" mode — it always works on a scoped slice.
-- No custom auth / API-key management — it reuses your `gh` login.
-- No web UI, graphs, or cross-repo dashboards.
+- "커밋 #1부터 전부 걷기" 모드 없음 — 항상 좁힌 슬라이스만 다룹니다.
+- 자체 인증 / API 키 관리 없음 — 당신의 `gh` 로그인을 재사용합니다.
+- 웹 UI, 그래프, 다중 저장소 대시보드 없음.
 
-## License
+## 라이선스
 
 MIT

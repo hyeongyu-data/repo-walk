@@ -16,10 +16,24 @@
 규칙이 충돌하면 다음 순서로 적용합니다:
 
 1. 사용자의 명시적 요청
-2. `AGENTS.md` 및 `CLAUDE.md` symlink
-3. `README.md`, 기타 저장소 문서
+2. `AGENTS.md` 및 `CLAUDE.md`/`.agents` symlink
+3. `.claude/docs/` 하위 가이드
+4. `README.md`, 기타 저장소 문서
 
 같은 수준이면 더 구체적이고 더 최근에 갱신된 규칙을 우선합니다.
+
+## 문서 탐색 기준
+
+비자명한 변경을 하기 전에 가장 관련 있는 가이드를 먼저 확인합니다:
+
+| 요청 유형 | 먼저 볼 문서 | 다음 문서 |
+| --- | --- | --- |
+| 프로젝트 구조·파일 책임 | `.claude/docs/agent-project-reference.md` | `.claude/docs/architecture-overview.md` |
+| 커맨드 md 작성·옵션 | `.claude/docs/agent-command-reference.md` | `.claude/docs/architecture-overview.md` |
+| 워크플로우, 커밋, PR | `.claude/docs/agent-workflow-reference.md` | `.claude/docs/agent-prohibitions.md` |
+| 보안, 토큰, 권한 | `.claude/docs/agent-security-guidelines.md` | `.claude/docs/agent-prohibitions.md` |
+| 코드 리뷰 | `.claude/docs/agent-peer-review.md` | `.claude/docs/agent-workflow-reference.md` |
+| 계획 리뷰 | `.claude/docs/agent-plan-review.md` | `.claude/docs/agent-peer-review.md` |
 
 ## 프로젝트 맥락
 

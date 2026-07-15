@@ -24,8 +24,8 @@ repo-walk/
 ├── .github/
 │   ├── ISSUE_TEMPLATE/      # bug / feature / experiment / config
 │   └── PULL_REQUEST_TEMPLATE.md
-├── AGENTS.md                # 에이전트 진입점 (핵심 규칙 + 문서 탐색표)
-├── CLAUDE.md → AGENTS.md    # 심링크
+├── CLAUDE.md                # 에이전트 진입점 (핵심 규칙 + 문서 탐색표)
+├── AGENTS.md → CLAUDE.md    # 심링크
 ├── .agents → .claude        # 심링크 (진입점 별칭)
 ├── README.md                # 사용자용 설명·설치·사용법
 └── LICENSE                  # MIT

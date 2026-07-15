@@ -1,0 +1,67 @@
+name: Feature
+description: 커맨드 기능, 스코프 옵션, 해설 방식의 추가 또는 개선을 제안합니다.
+title: "[FEAT] "
+labels: ["feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Feature issue는 변경의 출발점입니다. PR은 이 issue의 완료 조건을 만족하도록 작게 나누어 주세요. 이 플러그인은 "얇은 래퍼"를 지향하니, 새 기능이 정말 필요한지(YAGNI)부터 적어 주세요.
+
+  - type: textarea
+    id: purpose
+    attributes:
+      label: 목적
+      description: 이 변경이 왜 필요한지, 어떤 사용 시나리오를 해결하는지 설명해 주세요.
+      placeholder: 예) 특정 작성자의 PR만 따라 읽도록 --author 필터를 추가합니다.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: 작업 범위
+      description: 이번 issue에서 할 일을 체크리스트로 적어 주세요.
+      value: |
+        - [ ]
+        - [ ]
+        - [ ]
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: 영향받는 컴포넌트
+      multiple: true
+      options:
+        - 슬래시 커맨드 (commands/repo-walk.md)
+        - 플러그인 매니페스트 (plugin.json / marketplace.json)
+        - gh 연동 / 데이터 수집
+        - 타임라인 정렬 / 스코프 필터
+        - 해설(narration) 방식
+        - 진행 커서 / 이어보기
+        - 문서 (README / AGENTS.md)
+        - 기타
+    validations:
+      required: true
+
+  - type: textarea
+    id: done
+    attributes:
+      label: 완료 조건
+      description: 이 issue가 끝났다고 판단할 수 있는 기준을 적어 주세요.
+      value: |
+        - [ ]
+        - [ ]
+        - [ ]
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: 참고 사항
+      description: 관련 링크, 설계 메모, 왜 얇은 래퍼 원칙에 어긋나지 않는지 등을 적어 주세요.
+    validations:
+      required: false

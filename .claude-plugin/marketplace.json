@@ -1,0 +1,13 @@
+{
+  "name": "repo-walk",
+  "owner": {
+    "name": "hyeongyu-data"
+  },
+  "plugins": [
+    {
+      "name": "repo-walk",
+      "source": "./",
+      "description": "Walk a GitHub repo's history step by step and have Claude narrate it (PR-centric by default; --timeline for pure chronological order)."
+    }
+  ]
+}

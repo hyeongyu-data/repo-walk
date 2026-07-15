@@ -1,0 +1,7 @@
+{
+  "name": "repo-walk",
+  "version": "0.1.0",
+  "description": "Walk a GitHub repo's history one step at a time and have Claude narrate it. PR-centric by default (why → what → how), with a pure chronological --timeline mode.",
+  "author": "hyeongyu-data",
+  "commands": "./commands"
+}

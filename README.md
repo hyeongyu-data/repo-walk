@@ -47,6 +47,15 @@ GitHub 저장소의 역사를 **한 단계씩 걸으며 해설해주는** Claude
 - [Claude Code](https://claude.com/claude-code) 또는 [Codex CLI](https://github.com/openai/codex)
 - [`gh` CLI](https://cli.github.com/), 인증 완료 (`gh auth login`)
 
+## 보안
+
+- 이 플러그인은 GitHub 데이터를 **읽기만** 하며, 대상 저장소의 이슈·PR·브랜치·설정을
+  변경하지 않습니다.
+- PR 본문, diff, 리뷰처럼 원격에서 가져온 텍스트는 비신뢰 데이터로 처리합니다. 안에
+  포함된 명령이나 지시를 실행하지 않습니다.
+- private 저장소의 코드·본문·diff는 현재 Claude 세션과 로컬 상태 파일에서만
+  처리하며, 시크릿·개인정보로 보이는 값은 출력하거나 상태 파일에 저장하지 않습니다.
+
 ## 설치
 
 ### Claude Code

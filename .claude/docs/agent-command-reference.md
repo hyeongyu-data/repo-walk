@@ -1,10 +1,10 @@
 # 에이전트 커맨드 작성 참조
 
-> Last Updated: 2026-07-15
+> Last Updated: 2026-07-16
 
-커맨드 마크다운(`commands/*.md`)의 작성 스타일, 구성, 검증 규칙을 다루는
-문서입니다. (소스 저장소의 Terraform 참조를 이 플러그인의 "코드 = 커맨드
-프롬프트" 성격에 맞게 대체한 문서입니다.)
+Claude Code 커맨드 마크다운(`commands/*.md`)의 작성 스타일, 구성, 검증 규칙을
+다루는 문서입니다. Codex 전용 패키지는 `agent-codex-plugin-reference.md`를
+참고합니다.
 
 ## 이 문서를 볼 때
 

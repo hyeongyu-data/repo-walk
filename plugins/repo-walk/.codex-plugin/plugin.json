@@ -1,0 +1,22 @@
+{
+  "name": "repo-walk",
+  "version": "0.1.0",
+  "description": "GitHub 저장소 역사를 단계별로 해설하는 Codex 전용 플러그인",
+  "author": {
+    "name": "hyeongyu-data"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "repo-walk",
+    "shortDescription": "GitHub 역사를 단계별로 읽고 해설합니다.",
+    "longDescription": "PR·이슈·커밋의 변화를 시간순으로 읽으며 왜·무엇을·어떻게가 이어지는지 설명합니다.",
+    "developerName": "hyeongyu-data",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read"],
+    "defaultPrompt": [
+      "hyeongyu-data/repo-walk의 역사를 PR 순서대로 설명해줘.",
+      "owner/repo를 시간순으로 한 단계씩 읽어줘.",
+      "현재 저장소의 최근 PR 변화를 학습 자료로 정리해줘."
+    ]
+  }
+}

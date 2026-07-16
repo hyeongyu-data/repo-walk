@@ -1,6 +1,6 @@
 # repo-walk
 
-GitHub 저장소의 역사를 **한 단계씩 걸으며 해설해주는** Claude Code 플러그인.
+GitHub 저장소의 역사를 **한 단계씩 걸으며 해설해주는** Claude Code·Codex 플러그인.
 커밋·이슈·PR을 그냥 나열하는 게 아니라, 각 변경이 *왜* 생겼고, *무엇을* 했으며,
 앞의 것 위에 *어떻게* 쌓였는지 설명합니다.
 
@@ -11,8 +11,8 @@ GitHub 저장소의 역사를 **한 단계씩 걸으며 해설해주는** Claude
 
 ## 동작 방식
 
-얇은 래퍼입니다: `gh`가 데이터를 가져오고, Claude가 해설합니다. 서버·API 키·
-데이터베이스 없이 슬래시 커맨드 하나뿐입니다.
+얇은 래퍼입니다: `gh`가 데이터를 가져오고, Claude 또는 Codex가 해설합니다. 서버·
+API 키·데이터베이스·실행 바이너리 없이 플랫폼별 플러그인 지시문만 제공합니다.
 
 - **기본은 PR 중심, 한 번에 하나씩** — PR이 자연스러운 이해 단위입니다: 연결된
   이슈는 *왜*를, PR 본문은 *무엇을*, 안의 커밋들은 *어떻게*를 담습니다. 머지된
@@ -54,7 +54,7 @@ GitHub 저장소의 역사를 **한 단계씩 걸으며 해설해주는** Claude
   변경하지 않습니다.
 - PR 본문, diff, 리뷰처럼 원격에서 가져온 텍스트는 비신뢰 데이터로 처리합니다. 안에
   포함된 명령이나 지시를 실행하지 않습니다.
-- private 저장소의 코드·본문·diff는 현재 Claude 세션과 로컬 상태 파일에서만
+- private 저장소의 코드·본문·diff는 현재 Claude Code 또는 Codex 세션과 로컬 상태 파일에서만
   처리하며, 시크릿·개인정보로 보이는 값은 출력하거나 상태 파일에 저장하지 않습니다.
 
 ## 설치
@@ -70,17 +70,22 @@ GitHub 저장소의 역사를 **한 단계씩 걸으며 해설해주는** Claude
 
 ### Codex CLI
 
-커맨드 본문이 그대로 Codex 커스텀 프롬프트로 동작합니다(`gh` 호출 + `$ARGUMENTS`
-공통). 저장소를 클론한 뒤 프롬프트를 `~/.codex/prompts/`로 복사하면 됩니다:
+Codex 전용 플러그인을 설치합니다. Claude Code용 `commands/`·`.claude-plugin`과는
+독립된 `.codex-plugin`·스킬 패키지이므로 커스텀 프롬프트 파일을 복사할 필요가
+없습니다.
 
 ```
-cp codex/prompts/repo-walk.md ~/.codex/prompts/repo-walk.md
+codex plugin marketplace add hyeongyu-data/repo-walk --ref main
+codex plugin add repo-walk@repo-walk
 ```
 
-이후 Codex에서 `/repo-walk owner/repo`로 호출합니다. (`codex/prompts/repo-walk.md`는
-`commands/repo-walk.md`를 가리키는 심링크라 커맨드가 바뀌면 양쪽이 함께 갱신됩니다.)
+설치 뒤 **새 Codex 스레드**에서 `repo-walk` 스킬을 선택하거나
+`owner/repo의 역사를 PR 순서대로 설명해줘`처럼 요청합니다. 설치된 스킬의 호출
+방식은 Claude Code의 `/repo-walk` 슬래시 커맨드와 다릅니다.
 
 ## 사용법
+
+### Claude Code
 
 ```
 /repo-walk owner/repo                     # PR 중심 순회, 시간순 첫 15개 PR
@@ -95,6 +100,17 @@ cp codex/prompts/repo-walk.md ~/.codex/prompts/repo-walk.md
 
 순회 중에는 *"#123 diff 보여줘"*, *"이건 왜 필요했어?"* 처럼 그냥 물어봐도 됩니다
 — Claude가 맥락을 이미 로드해 두었습니다.
+
+### Codex
+
+새 스레드에서 `repo-walk` 스킬을 선택한 뒤, 대상 저장소와 원하는 옵션을 자연어로
+요청합니다. Codex에서는 Claude Code의 `/repo-walk` 슬래시 커맨드를 사용하지 않습니다.
+
+```
+hyeongyu-data/repo-walk의 역사를 PR 순서대로 한 단계씩 설명해줘.
+owner/repo를 --timeline으로 시간순 해설해줘.
+owner/repo에서 next로 이어서 보고, 대기 중인 퀴즈는 skip해줘.
+```
 
 ## 일부러 하지 않는 것
 

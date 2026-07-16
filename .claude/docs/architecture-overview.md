@@ -1,6 +1,6 @@
 # 아키텍처 개요
 
-> Last Updated: 2026-07-15
+> Last Updated: 2026-07-16
 
 플러그인의 전체 그림과 설계 결정을 담은 문서입니다. 파일별 책임은
 `agent-project-reference.md`, 커맨드 작성 규칙은 `agent-command-reference.md`를
@@ -8,15 +8,17 @@
 
 ## 시스템 맥락
 
-repo-walk는 GitHub 저장소의 역사(커밋·이슈·PR)를 한 단계씩 걸으며 Claude가
-*해설*하도록 돕는 Claude Code 슬래시 커맨드 플러그인입니다. 목적은 낯선
-코드베이스 적응과 프로젝트 발전 과정 학습입니다.
+repo-walk는 GitHub 저장소의 역사(커밋·이슈·PR)를 한 단계씩 걸으며 Claude Code
+또는 Codex가 *해설*하도록 돕는 플러그인입니다. 두 플랫폼은 각자의 매니페스트와
+호출 방식을 쓰는 독립 패키지이며, 목적은 낯선 코드베이스 적응과 프로젝트 발전 과정
+학습입니다.
 
 ## 핵심 설계 결정
 
-1. **얇은 래퍼.** `gh`가 데이터를 가져오고, 해설은 이미 켜져 있는 Claude가
-   합니다. 별도 서버·API 키·DB·빌드·실행 바이너리가 없습니다. 저장소에 담기는
-   실체는 "gh 호출 + 해설 지시문"이 든 마크다운 하나입니다.
+1. **얇은 래퍼.** `gh`가 데이터를 가져오고, 해설은 이미 켜져 있는 Claude 또는
+   Codex가 합니다. 별도 서버·API 키·DB·빌드·실행 바이너리가 없습니다. Claude는
+   `commands/repo-walk.md`, Codex는 `plugins/repo-walk/skills/repo-walk/SKILL.md`의
+   해설 지시문으로 독립 배포합니다.
 2. **나열이 아니라 해설이 가치.** `git log`·`gh`는 이미 나열을 완벽히 합니다.
    이 플러그인의 유일한 존재 이유는 LLM이 히스토리를 읽고 "왜/무엇을/어떻게"를
    설명하는 것입니다.
@@ -33,7 +35,8 @@ repo-walk는 GitHub 저장소의 역사(커밋·이슈·PR)를 한 단계씩 걸
 ## 데이터 흐름
 
 ```
-/repo-walk owner/repo [옵션]
+Claude Code: /repo-walk owner/repo [옵션]
+Codex: repo-walk 스킬 + owner/repo 요청
     ↓  gh auth status 확인, 인자 파싱
     ↓  gh pr list / gh api commits / gh issue list  (수집)
     ↓  시간순 정렬 + 스코프 적용 → .repo-walk/<owner>-<repo>.json 저장

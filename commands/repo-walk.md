@@ -1,6 +1,6 @@
 ---
 description: GitHub 저장소 역사를 한 단계씩 걸으며 해설 (기본 PR 중심, --timeline은 순수 시간순)
-argument-hint: owner/repo [--timeline] [--limit N] [--path DIR] [--since DATE] [--batch N] [next|reset]
+argument-hint: owner/repo [--timeline] [--limit N] [--path DIR] [--since DATE] [--batch 1] [next|skip|reset]
 allowed-tools: Bash(gh auth status), Bash(gh repo view:*), Bash(gh pr list:*), Bash(gh pr view:*), Bash(gh pr diff:*), Bash(gh issue list:*), Bash(gh issue view:*), Bash(gh api --method GET:*), Read, Write
 ---
 
@@ -37,15 +37,18 @@ allowed-tools: Bash(gh auth status), Bash(gh repo view:*), Bash(gh pr list:*), B
   - `--limit N` — 총 몇 개 단위를 로드할지 (기본 15). 대형 저장소를 감당 가능하게 유지.
   - `--path DIR` — 이 경로를 건드리는 역사만.
   - `--since DATE` — 이 날짜 이후 역사만 (ISO, 예: 2024-01-01).
-  - `--batch N` — 한 단계에서 몇 개 단위를 해설할지 (기본 1 — 한 번에 PR 하나씩 깊게).
-  - `next` — 저장된 커서에서 이어가기 (재수집 생략).
+  - `--batch 1` — 한 단계에서 한 단위만 해설합니다(기본 1). 퀴즈·커서 상태를
+    일관되게 유지하기 위해 학습 모드에서는 1 이외 값을 거부합니다.
+  - `next` — 완료한 단위의 저장된 커서에서 이어가기 (재수집 생략). 퀴즈가 대기 중이면
+    다음 단위로 넘어가지 않고 먼저 답변을 안내합니다.
+  - `skip` — 대기 중인 회고 퀴즈를 명시적으로 건너뛰고 현재 단위를 완료 처리합니다.
   - `reset` — 저장된 커서/타임라인을 지우고 처음부터.
 - 상태 파일: 현재 작업 디렉터리의 `.repo-walk/<owner>-<repo>.json`.
-  구축한 타임라인 + `cursor`(다음에 해설할 인덱스)를 담습니다. 필요하면
-  `.repo-walk/` 디렉터리를 만듭니다.
+  구축한 타임라인 + `cursor`(아직 완료하지 않은 인덱스) + `pendingQuiz`를 담습니다.
+  필요하면 `.repo-walk/` 디렉터리를 만듭니다.
 
-호출이 `owner/repo next` 뿐이면 1번 섹션(데이터 이미 저장됨)을 건너뛰고,
-상태 파일을 읽어 3번 섹션으로 갑니다.
+호출이 `owner/repo next` 또는 `owner/repo skip` 뿐이면 1번 섹션(데이터 이미
+저장됨)을 건너뛰고, 상태 파일을 읽어 3번 섹션으로 갑니다.
 
 ## 1. 타임라인 구축 (첫 실행 또는 `reset` 시에만)
 
@@ -92,13 +95,29 @@ gh issue list -R OWNER/REPO --state all --limit 1000 \
 
 ### 저장
 
-`{owner, repo, mode, units:[...], cursor:0}`을 상태 파일에 씁니다.
-몇 개 단위를 어떤 모드로 로드했는지 사용자에게 알립니다.
+아래처럼 **버전이 있는 상태**를 씁니다. `pendingQuiz`에는 질문·정답·코드·리뷰
+원문을 저장하지 않고, 현재 단위를 다시 조회할 수 있는 메타데이터만 둡니다.
+
+```json
+{
+  "schemaVersion": 2,
+  "owner": "OWNER",
+  "repo": "REPO",
+  "mode": "pr",
+  "units": ["..."],
+  "cursor": 0,
+  "pendingQuiz": null
+}
+```
+
+기존 상태 파일에 `schemaVersion`이 없으면 `pendingQuiz:null`을 추가해 버전 2로
+마이그레이션합니다. 대상 owner/repo, mode, cursor 범위가 현재 요청과 맞지 않으면
+상태를 재사용하지 말고 `reset`을 안내합니다.
 
 ## 2. 배치 해설
 
-상태 파일에서 `cursor`를 읽습니다. `--batch`만큼의 다음 단위를 취합니다
-(기본 1 — 한 번에 PR 하나를 깊게). **각 단위마다** 다음 **5부분을 순서대로**,
+상태 파일에서 `cursor`의 **현재 단위 하나만** 취합니다. `--batch`가 1이 아니면
+학습 모드에서 지원하지 않는다고 알리고 중단합니다. **현재 단위마다** 다음 **5부분을 순서대로**,
 간단 요약이 아니라 학습 자료로 쓸 만큼 자세히 냅니다. 시작 전 예측하고 끝에
 회고하는 **학습 루프**도 반드시 포함합니다.
 
@@ -211,22 +230,48 @@ diff와 PR 메타데이터를 바탕으로, 이 PR의 핵심 설계
 **상세는 지연 로딩** — 그 단위를 해설할 때만 diff/본문/리뷰를 가져오고,
 사용자가 펼쳐달라고 할 때만 요약 이상을 보여줍니다:
 - PR: `gh pr view N -R O/R` + `gh pr diff N -R O/R` (diff는 통째로 붙이지 말고 요약)
-- 커밋: `gh api repos/O/R/commits/SHA` (`.files[].patch`가 diff)
+- 커밋: `gh api --method GET repos/O/R/commits/SHA` (`.files[].patch`가 diff)
 - 이슈: `gh issue view N -R O/R --comments`
 
-해설 후 `cursor`를 배치 크기만큼 전진시키고 **상태 파일에 다시 씁니다**.
+해설과 회고 퀴즈를 출력한 뒤에는 cursor를 전진시키지 않습니다. 대신 아래처럼
+`pendingQuiz`를 저장합니다. 이는 퀴즈가 현재 `cursor`의 단위에 대해 대기 중임을
+나타내며, 질문·답변·코드 원문은 저장하지 않습니다.
+
+```json
+{
+  "unitIndex": 0,
+  "unitId": "N",
+  "unitType": "pr",
+  "questionCount": 2,
+  "issuedAt": "ISO-8601"
+}
+```
+
 그런 다음 배치 끝에 안내합니다:
 
 ```
 ── 다음: /repo-walk owner/repo next   ·   퀴즈 답: "퀴즈 1: 내 답"   ·   펼치기: "#N diff 보여줘"   ·   그만: 말만 하세요
 ```
 
-## 3. 이어가기 (`next`)
+## 3. 퀴즈 답변·건너뛰기·이어가기
 
-상태 파일을 읽고, `cursor`에서 다음 배치를 해설(2번 섹션)한 뒤 새 커서를
-저장합니다. `cursor`가 끝에 도달하면 순회가 끝났음과 몇 개 단위를 다뤘는지
-알립니다. 학습자가 회고 퀴즈에 답하면 커서를 전진시키지 말고 먼저 해당 답을
-채점·보충 설명한 뒤 `next` 안내를 다시 보여줍니다.
+학습자가 `퀴즈 1: ...`처럼 답하면 다음 순서로 처리합니다.
+
+1. 상태의 `pendingQuiz.unitIndex`가 현재 `cursor`와 같고 unit ID·type도 일치하는지
+   확인합니다. 아니면 답을 채점하지 말고 현재 단위의 퀴즈를 다시 보여줍니다.
+2. 현재 대화에 출제 문맥이 있으면 답을 채점합니다. 세션을 넘어 문맥이 사라졌다면
+   현재 단위를 다시 지연 조회해 퀴즈를 새로 낸 뒤 답변을 요청합니다.
+3. 채점·최소 코드 근거·보충 설명을 출력한 **뒤에만** `cursor`를
+   `pendingQuiz.unitIndex + 1`로 전진시키고 `pendingQuiz`를 `null`로 저장합니다.
+
+`skip`은 대기 중인 퀴즈가 있을 때만 허용합니다. 퀴즈를 건너뛰었다고 알리고,
+답변 채점 없이 위 3번과 동일하게 cursor를 한 칸 전진시키고 `pendingQuiz`를
+`null`로 저장합니다.
+
+`next`가 호출됐을 때 `pendingQuiz`가 있으면 cursor를 전진시키지 않습니다. 현재
+단위의 퀴즈가 아직 대기 중임을 알리고 답변 또는 `skip`을 안내합니다. 대기 중인
+퀴즈가 없을 때만 cursor에서 다음 단위를 해설합니다. cursor가 끝에 도달하면
+순회가 끝났음과 완료한 단위 수를 알립니다.
 
 ## 원칙
 

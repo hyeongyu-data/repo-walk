@@ -28,7 +28,8 @@ GitHub 저장소의 역사를 **한 단계씩 걸으며 해설해주는** Claude
   (리뷰 해설/직접 코드리뷰/학습 포인트는 Claude 추론이라 교육용 참고입니다.)
 - **능동 학습 루프** — 해설 전 예측 질문 1개로 스스로 생각하게 하고, 해설에서는
   `변경 전 → 이번 PR → 다음 변화`와 `입력 → 처리 → 출력/소비자` 코드 추적 경로를
-  실제 근거가 있을 때만 제시합니다. 끝에는 회고 퀴즈 1~2개를 내고 답변을 채점합니다.
+  실제 근거가 있을 때만 제시합니다. 끝에는 회고 퀴즈 1~2개를 내고, 답변을 채점한
+  뒤에만 다음 PR로 넘어갑니다.
 - **읽기 쉬운 결과 형식** — 모든 PR은 한 줄 요약과 "한눈에 보기" 표로 시작합니다.
   이후에는 번호가 매겨진 섹션, 파일·라인 표기, 짧은 코드 인용, 심각도 표기로
   근거와 결론을 분리해 빠르게 훑을 수 있습니다.
@@ -86,8 +87,9 @@ cp codex/prompts/repo-walk.md ~/.codex/prompts/repo-walk.md
 /repo-walk owner/repo --timeline          # 순수 시간순 (커밋+이슈+PR)
 /repo-walk owner/repo --path src/auth     # 특정 경로를 건드리는 역사만
 /repo-walk owner/repo --since 2024-01-01  # 최근 역사만
-/repo-walk owner/repo --limit 40 --batch 5
-/repo-walk owner/repo next                # 멈춘 지점부터 이어가기
+/repo-walk owner/repo --limit 40 --batch 1
+/repo-walk owner/repo next                # 퀴즈를 완료한 지점부터 이어가기
+/repo-walk owner/repo skip                # 대기 중인 퀴즈를 건너뛰고 다음 PR로
 /repo-walk owner/repo reset               # 처음부터 다시
 ```
 

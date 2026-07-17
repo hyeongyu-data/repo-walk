@@ -24,9 +24,21 @@ codex plugin marketplace add hyeongyu-data/repo-walk --ref main
 codex plugin add repo-walk@repo-walk
 ```
 
-설치 뒤에는 새 Codex 스레드에서 `repo-walk` 스킬을 선택하거나 대상 `owner/repo`를
-포함한 자연어 요청을 보냅니다. `/repo-walk`는 Claude Code 전용 슬래시 커맨드이므로
-Codex 설치 안내에 사용하지 않습니다.
+설치 뒤에는 새 Codex 스레드에서 플랫폼에 맞는 명시 호출 문법을 사용합니다.
+
+```text
+# Codex CLI
+$repo-walk:repo-walk owner/repo
+$repo-walk:repo-walk owner/repo --timeline
+$repo-walk:repo-walk owner/repo next
+
+# Codex 데스크톱 앱
+@repo-walk owner/repo
+```
+
+Codex CLI의 스킬 이름은 플러그인 이름공간을 포함합니다. `/repo-walk`는 Claude Code
+전용 슬래시 커맨드이므로 Codex 설치 안내에 사용하지 않습니다. 자연어 요청도 가능하지만,
+명시 호출을 사용하면 대상 플러그인을 확실히 선택할 수 있습니다.
 
 ## 동작과 보안 기준
 

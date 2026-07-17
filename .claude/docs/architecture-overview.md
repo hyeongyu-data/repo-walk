@@ -28,8 +28,9 @@ repo-walk는 GitHub 저장소의 역사(커밋·이슈·PR)를 한 단계씩 걸
 4. **스코프 강제.** 최대 1,000개의 머지 PR을 시간순으로 정렬한 뒤 기본 첫 15개
    단위를 해설합니다. `--limit`/`--path`/`--since`로 슬라이스하며, 더 큰
    저장소에서는 `--path` 또는 `--since`를 우선 권합니다.
-5. **퀴즈 대기 상태를 가진 디스크 커서.** 타임라인·cursor·`pendingQuiz` 메타데이터를
-   `.repo-walk/*.json`에 저장합니다. 회고 퀴즈를 채점하거나 명시적으로 건너뛴 뒤에만
+5. **심화 답안과 회고 퀴즈의 분리.** 심화 질문은 왜 중요한가와 근거 기반 모범 답안을
+   즉시 제공해 탐구의 발판으로 삼습니다. 타임라인·cursor·`pendingQuiz` 메타데이터는
+   `.repo-walk/*.json`에 저장하고, 회고 퀴즈를 채점하거나 명시적으로 건너뛴 뒤에만
    cursor를 전진시켜 긴 역사를 여러 세션에 나눠 걷습니다.
 
 ## 데이터 흐름
@@ -40,7 +41,7 @@ Codex: repo-walk 스킬 + owner/repo 요청
     ↓  gh auth status 확인, 인자 파싱
     ↓  gh pr list / gh api commits / gh issue list  (수집)
     ↓  시간순 정렬 + 스코프 적용 → .repo-walk/<owner>-<repo>.json 저장
-    ↓  단위 1개 해설 + 회고 퀴즈: 왜/무엇을/어떻게 (diff는 지연 로딩)
+    ↓  단위 1개 해설 + 심화 질문/중요성/모범 답안 + 회고 퀴즈 (diff는 지연 로딩)
     ↓  pendingQuiz 저장 → 답변 채점/skip 후 커서 전진 → "next"로 이어가기
 ```
 

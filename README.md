@@ -79,9 +79,8 @@ codex plugin marketplace add hyeongyu-data/repo-walk --ref main
 codex plugin add repo-walk@repo-walk
 ```
 
-설치 뒤 **새 Codex 스레드**에서 `repo-walk` 스킬을 선택하거나
-`owner/repo의 역사를 PR 순서대로 설명해줘`처럼 요청합니다. 설치된 스킬의 호출
-방식은 Claude Code의 `/repo-walk` 슬래시 커맨드와 다릅니다.
+설치 뒤에는 **새 Codex 스레드**에서 플랫폼에 맞는 명시 호출 문법을 사용합니다.
+`/repo-walk`는 Claude Code 전용 슬래시 커맨드이므로 Codex에서 사용하지 않습니다.
 
 ## 사용법
 
@@ -103,13 +102,20 @@ codex plugin add repo-walk@repo-walk
 
 ### Codex
 
-새 스레드에서 `repo-walk` 스킬을 선택한 뒤, 대상 저장소와 원하는 옵션을 자연어로
-요청합니다. Codex에서는 Claude Code의 `/repo-walk` 슬래시 커맨드를 사용하지 않습니다.
+Codex CLI에서는 플러그인 이름공간을 포함한 `$repo-walk:repo-walk`로 스킬을 명시
+호출합니다. Codex 데스크톱 앱에서는 `@repo-walk`를 입력해 플러그인을 선택한 뒤
+같은 인자를 보냅니다. 자연어 요청으로도 스킬이 선택될 수 있지만, 아래처럼 명시
+호출하면 의도한 플러그인을 확실히 사용합니다.
 
 ```
-hyeongyu-data/repo-walk의 역사를 PR 순서대로 한 단계씩 설명해줘.
-owner/repo를 --timeline으로 시간순 해설해줘.
-owner/repo에서 next로 이어서 보고, 대기 중인 퀴즈는 skip해줘.
+# Codex CLI
+$repo-walk:repo-walk owner/repo
+$repo-walk:repo-walk owner/repo --timeline
+$repo-walk:repo-walk owner/repo next
+$repo-walk:repo-walk owner/repo skip
+
+# Codex 데스크톱 앱
+@repo-walk owner/repo
 ```
 
 ## 일부러 하지 않는 것

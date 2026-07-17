@@ -16,8 +16,20 @@ codex plugin marketplace add hyeongyu-data/repo-walk --ref main
 codex plugin add repo-walk@repo-walk
 ```
 
-설치 뒤 새 Codex 스레드에서 `repo-walk` 스킬을 선택하거나, 예를 들어
-`hyeongyu-data/repo-walk의 역사를 PR 순서대로 설명해줘`라고 요청하세요.
+설치 뒤 새 Codex 스레드에서 플랫폼에 맞는 명시 호출 문법을 사용하세요.
+
+```text
+# Codex CLI
+$repo-walk:repo-walk owner/repo
+$repo-walk:repo-walk owner/repo --timeline
+$repo-walk:repo-walk owner/repo next
+
+# Codex 데스크톱 앱
+@repo-walk owner/repo
+```
+
+`/repo-walk`는 Claude Code 전용 슬래시 커맨드입니다. Codex 플러그인에는 사용하지
+않습니다.
 
 ## 보안과 상태
 

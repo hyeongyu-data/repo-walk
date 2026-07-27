@@ -14,6 +14,9 @@ Closes #
 ## 체크리스트
 
 - [ ] `plugin.json` / `marketplace.json` JSON이 유효하고 이름·설명이 서로 일치한다
+- [ ] 동작을 바꿨다면 바꾼 패키지의 `plugin.json` `version`을 올렸다
+      (Claude는 `.claude-plugin/`, Codex는 `plugins/repo-walk/.codex-plugin/`).
+      버전이 그대로면 설치 캐시가 갱신되지 않아 사용자에게 옛 동작이 나간다
 - [ ] `commands/repo-walk.md`의 frontmatter(`---`)와 `allowed-tools`가 올바르다
 - [ ] 동작을 바꿨다면 `README.md` 사용법을 같은 PR에서 갱신했다
 - [ ] 토큰·시크릿·개인정보가 코드에 포함되지 않았다 (`gh` 인증 재사용)

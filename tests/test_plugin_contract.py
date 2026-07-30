@@ -31,6 +31,31 @@ def write_classification_input(directory):
 
 
 class PluginPackageTests(unittest.TestCase):
+    def test_report_feature_manifests_share_version_0_3_0(self):
+        claude_manifest = json.loads(
+            (ROOT / ".claude-plugin/plugin.json").read_text(encoding="utf-8")
+        )
+        codex_manifest = json.loads(
+            (
+                ROOT / "plugins/repo-walk/.codex-plugin/plugin.json"
+            ).read_text(encoding="utf-8")
+        )
+
+        self.assertEqual("0.3.0", claude_manifest["version"])
+        self.assertEqual(
+            "0.3.0",
+            codex_manifest["version"].split("+", 1)[0],
+        )
+
+    def test_codex_manifest_has_single_utc_cachebuster(self):
+        manifest = json.loads(
+            (
+                ROOT / "plugins/repo-walk/.codex-plugin/plugin.json"
+            ).read_text(encoding="utf-8")
+        )
+
+        self.assertRegex(manifest["version"], r"^0\.3\.0\+codex\.\d{14}$")
+
     def test_claude_report_script_exists(self):
         self.assertTrue((ROOT / "scripts/repo_walk_report.py").is_file())
 

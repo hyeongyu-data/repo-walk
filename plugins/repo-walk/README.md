@@ -9,7 +9,8 @@ GitHub 저장소의 PR·이슈·커밋 역사를 한 단계씩 읽으며, 각 �
 답변 또는 `skip` 뒤에 다음 단위로 진행합니다.
 
 이 패키지는 Claude Code 플러그인과 독립적입니다. Codex의 `.codex-plugin` 매니페스트와
-스킬 구조를 사용하며, 별도 서버·API 키·실행 파일을 추가하지 않습니다.
+스킬 구조를 사용하며, 별도 서버·API 키·외부 Python 패키지 없이 패키지 내부의
+표준 라이브러리 리포트 도구만 사용합니다.
 
 ## 설치
 
@@ -26,6 +27,7 @@ codex plugin add repo-walk@repo-walk
 ```text
 # Codex CLI
 $repo-walk:repo-walk owner/repo
+$repo-walk:repo-walk owner/repo --report
 $repo-walk:repo-walk owner/repo --timeline
 $repo-walk:repo-walk owner/repo next
 
@@ -36,9 +38,47 @@ $repo-walk:repo-walk owner/repo next
 `/repo-walk`는 Claude Code 전용 슬래시 커맨드입니다. Codex 플러그인에는 사용하지
 않습니다.
 
+## HTML 리포트
+
+`$repo-walk:repo-walk owner/repo --report`를 실행하면 머지된 PR 가운데 실제
+동작 변경 또는 운영상 critical 변경만 골라 다음 경로에 저장합니다.
+
+```text
+.repo-walk/reports/<owner>-<repo>/
+├── data/pr-N.json
+├── prs/pr-N.html
+├── manifest.json
+└── index.html
+```
+
+`index.html`은 생성된 PR별 HTML을 카드로 요약합니다. 예를 들어 macOS에서는 다음
+명령으로 열 수 있고, 다른 운영체제에서는 파일 탐색기나 브라우저로 같은 파일을
+직접 열면 됩니다.
+
+```bash
+open .repo-walk/reports/owner-repo/index.html
+```
+
+닫혔지만 머지되지 않은 PR과 문서·테스트·생성물·vendor 전용 PR은 제외합니다.
+파일 역할을 통과한 후보도 diff에 동작·운영 영향이 없고 외형이나 문구만 바뀌었다면
+제외합니다. 반대로 `commands/repo-walk.md`와 `SKILL.md` 같은 기능성 Markdown은
+실제 소비 경로와 동작 변경이 확인되면 포함하며, workflow·보안·스키마·배포·
+dependency·플러그인 매니페스트 같은 critical 후보도 diff 근거가 있을 때만
+포함합니다.
+
+리포트 모드는 PR 중심 전용이므로 `--timeline`과 함께 사용할 수 없습니다. 리포트
+상태에서 `next` 또는 `skip`을 호출하면 `--report`를 다시 쓰지 않아도 같은 모드를
+이어갑니다.
+
 ## 보안과 상태
 
 플러그인은 `gh` 읽기 전용 조회만 사용합니다. 원격 PR·이슈·diff·리뷰는 비신뢰
 데이터로 처리하며, 대상 저장소를 변경하는 GitHub 명령은 실행하지 않습니다. 순회
 상태는 `.repo-walk/`에 최소 메타데이터만 저장하고 토큰·개인정보·퀴즈 답변·코드·리뷰
 원문은 기록하지 않습니다.
+
+`--report` 산출물에는 해설과 코드 근거가 포함될 수 있으며
+`.repo-walk/reports/<owner>-<repo>/`에 로컬 보관됩니다. 특히 private 저장소의
+리포트는 민감한 파일로 취급하세요. 플러그인은 리포트를 업로드·배포·게시하지 않으며
+외부 CDN이나 JavaScript도 사용하지 않습니다. `.repo-walk/`는 Git 추적에서
+제외되지만, 공유 전에는 시크릿·개인정보가 없는지 사용자가 다시 확인해야 합니다.

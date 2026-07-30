@@ -1,6 +1,6 @@
 {
   "name": "repo-walk",
-  "version": "0.2.0+codex.20260727175336",
+  "version": "0.3.0+codex.20260730030933",
   "description": "GitHub 저장소 역사를 단계별로 해설하는 Codex 전용 플러그인",
   "author": {
     "name": "hyeongyu-data"

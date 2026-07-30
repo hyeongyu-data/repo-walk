@@ -1,6 +1,6 @@
 # 에이전트 커맨드 작성 참조
 
-> Last Updated: 2026-07-16
+> Last Updated: 2026-07-30
 
 Claude Code 커맨드 마크다운(`commands/*.md`)의 작성 스타일, 구성, 검증 규칙을
 다루는 문서입니다. Codex 전용 패키지는 `agent-codex-plugin-reference.md`를
@@ -19,8 +19,10 @@ Claude Code 커맨드 마크다운(`commands/*.md`)의 작성 스타일, 구성,
 1. **frontmatter** (`---`로 열고 닫음):
    - `description` — 한 줄 요약 (한글)
    - `argument-hint` — 인자 형식 힌트
-   - `allowed-tools` — 최소 권한만. 읽기 전용 `gh` 세부 명령과 `Read`, `Write`만
-     명시하고 `Bash(gh:*)`처럼 넓은 와일드카드는 사용하지 않음
+   - `allowed-tools` — 최소 권한만. 읽기 전용 `gh` 세부 명령, `Read`, `Write`,
+     리포트 모드의
+     `Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/repo_walk_report.py:*)`만 명시하고
+     `Bash(gh:*)`나 `Bash(python3:*)`처럼 넓은 와일드카드는 사용하지 않음
 2. **본문(프롬프트)** — 커맨드의 전체 로직. Claude가 읽고 그대로 수행합니다.
 
 ## 작성 규칙
@@ -40,6 +42,16 @@ Claude Code 커맨드 마크다운(`commands/*.md`)의 작성 스타일, 구성,
   `pendingQuiz` 메타데이터를 포함해 저장하도록 지시합니다. 퀴즈의 질문·정답·
   코드 원문은 저장하지 않고, 채점 또는 명시적 건너뛰기 후에만 cursor를 전진시켜
   세션을 넘어 이어지게 합니다.
+- `--report`는 PR 중심 전용입니다. 머지 여부와 파일 역할을 먼저 확인하고 diff에서
+  실제 동작·운영 영향을 판정한 뒤에만 `--limit`을 적용합니다. 닫힌 미머지 PR,
+  문서·테스트·생성물·vendor 전용 PR, 외형·문구만 바뀐 PR은 제외합니다. 기능성
+  Markdown과 critical 후보도 파일명만으로 포함하지 않고 diff 근거를 요구합니다.
+- Claude 패키지는 `${CLAUDE_PLUGIN_ROOT}/scripts/repo_walk_report.py`만 실행합니다.
+  현재 작업 디렉터리의 상대 `scripts/`를 사용하지 않습니다. 분류 입력과 리포트
+  입력을 포함한 모든 산출물은 `.repo-walk/reports/<owner>-<repo>/` 아래에 둡니다.
+  `render` 뒤에는 `rebuild-index`로 저장된 PR 전체의 `index.html`을 갱신합니다.
+- 리포트 도구가 실패하면 cursor와 `pendingQuiz`를 전진시키지 않고 즉시 멈춥니다.
+  private 저장소의 리포트는 로컬 민감 데이터이며 업로드·배포하지 않습니다.
 - 인과 주장은 추론임을 프롬프트가 인지하도록 합니다(확신 없으면 사실로
   단정하지 않기).
 - 사용자에게 보여주는 결과는 제목·한 줄 요약·"한눈에 보기" 표로 시작하고,
@@ -51,21 +63,29 @@ Claude Code 커맨드 마크다운(`commands/*.md`)의 작성 스타일, 구성,
 
 ## 검증
 
-이 저장소는 빌드가 없습니다. 커맨드 변경 후 최소 검증:
+이 저장소는 빌드가 없습니다. 커맨드나 리포트 계약 변경 후 최소 검증:
 
 ```bash
 # frontmatter가 --- 로 열리고 닫히는지
 head -20 commands/repo-walk.md
 
+# 분류·렌더링·패키지 경계 회귀 테스트
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -v
+
+# 두 독립 패키지의 표준 라이브러리 도구가 같은지
+cmp -s scripts/repo_walk_report.py plugins/repo-walk/scripts/repo_walk_report.py
+
 # 매니페스트 JSON 유효성
-python3 -c "import json; json.load(open('.claude-plugin/plugin.json')); json.load(open('.claude-plugin/marketplace.json')); print('json ok')"
+python3 -c "import json; json.load(open('.claude-plugin/plugin.json')); json.load(open('.claude-plugin/marketplace.json')); json.load(open('plugins/repo-walk/.codex-plugin/plugin.json')); print('json ok')"
 ```
 
-가능하면 실제 저장소로 `/repo-walk owner/repo`를 실행해 해설 흐름과 커서
-이어보기가 동작하는지 확인합니다.
+가능하면 실제 저장소로 `/repo-walk owner/repo --report`를 실행해 해설 흐름,
+커서 이어보기, PR별 HTML과 `index.html` 생성을 확인합니다.
 
 ## 새 옵션을 추가할 때
 
 - 정말 필요한지(YAGNI) 먼저 판단합니다 — 얇은 래퍼 유지.
 - `argument-hint`, 본문 파싱 섹션, `README.md` 사용법을 같은 변경에서
   갱신합니다.
+- 리포트 계약을 바꾸면 Codex 스킬과 두 `repo_walk_report.py` 사본, 테스트,
+  보안 문서도 함께 동기화합니다.

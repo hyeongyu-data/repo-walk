@@ -14,6 +14,9 @@ GitHub 역사를 단순히 나열하지 말고, 각 단위가 **왜** 생겼고 
 사용자 요청에서 `owner/repo`와 다음 옵션을 읽습니다.
 
 - `--timeline`: 커밋·이슈·PR을 시간순으로 함께 해설합니다.
+- `--report`: 선택한 머지 PR의 JSON·HTML·인덱스를 로컬에 저장합니다. PR 중심
+  전용이므로 `--timeline`과 함께 요청되면 지원하지 않는 조합이라고 알리고 파일을
+  만들기 전에 중단합니다.
 - `--limit N`: 총 로드 단위 수입니다. 기본값은 15입니다.
 - `--path DIR`, `--since DATE`: 경로·기간을 먼저 좁힙니다.
 - `--batch 1`: 학습 모드에서는 단위 하나만 허용합니다. 다른 값은 지원하지 않는다고
@@ -27,10 +30,11 @@ GitHub 역사를 단순히 나열하지 말고, 각 단위가 **왜** 생겼고 
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "owner": "OWNER",
   "repo": "REPO",
   "mode": "pr",
+  "reportMode": false,
   "units": ["..."],
   "cursor": 0,
   "pendingQuiz": null
@@ -39,8 +43,10 @@ GitHub 역사를 단순히 나열하지 말고, 각 단위가 **왜** 생겼고 
 
 `cursor`는 아직 완료하지 않은 단위를 가리킵니다. `pendingQuiz`에는 질문·정답·코드·
 리뷰 원문을 저장하지 않고 `unitIndex`, `unitId`, `unitType`, `questionCount`,
-`issuedAt`만 기록합니다. 기존 상태에 버전이 없으면 `pendingQuiz:null`을 추가해
-버전 2로 마이그레이션합니다. owner/repo·모드·cursor 범위가 맞지 않으면 상태를
+`issuedAt`만 기록합니다. 버전 2 상태는 `schemaVersion:3`, `reportMode:false`로
+마이그레이션합니다. 기존 unit의 `classification`에는 `decision`, `reason`,
+`classifierVersion`, `inputDigest`만 남깁니다. 코드·본문·diff·리뷰·해설 원문은
+상태에 저장하지 않습니다. owner/repo·모드·cursor 범위가 맞지 않으면 상태를
 재사용하지 말고 `reset`을 안내합니다.
 
 ## 보안 경계
@@ -78,6 +84,80 @@ GitHub 역사를 단순히 나열하지 말고, 각 단위가 **왜** 생겼고 
    gh pr list -R OWNER/REPO --state all --limit 1000 --json number,title,createdAt
    gh issue list -R OWNER/REPO --state all --limit 1000 --json number,title,createdAt
    ```
+
+## 리포트 모드
+
+리포트 root는 `.repo-walk/reports/<owner>-<repo>/`입니다. 새 상태에는
+`reportMode:true`를 쓰고, 다음 순서를 지킵니다.
+
+1. 머지 PR을 최대 1,000개 모아 `mergedAt` 오름차순으로 정렬하고 `--path`·
+   `--since`를 적용합니다. 이 단계에서는 `--limit`을 적용하지 않습니다.
+2. 각 후보에 `gh pr view N -R OWNER/REPO --json
+   state,mergedAt,changedFiles,files`를 실행합니다. 저장소와 이 메타데이터만
+   `.repo-walk/report-inputs/OWNER-REPO/classification-pr-N.json`에 쓰고 패키지
+   분류기를 실행합니다.
+
+   ```bash
+   python3 plugins/repo-walk/scripts/repo_walk_report.py classify \
+     --input .repo-walk/report-inputs/OWNER-REPO/classification-pr-N.json
+   ```
+
+3. `exclude`면 unit에 `decision`, `reason`, `classifierVersion`, `inputDigest`만
+   기록하고 다음 후보로 갑니다. `review/incomplete_metadata`는 자동 포함·제외하지
+   말고 파일 메타데이터를 보완합니다. 보완하지 못하면 이유만 기록하고 건너뜁니다.
+4. `candidate`면 diff 근거로 의미를 판정합니다. `commands/repo-walk.md`와 skill
+   같은 기능성 Markdown은 확장자가 아니라 소비 경로와 실제 동작 변경을 기준으로
+   판단합니다. workflow·plugin manifest 같은 critical 후보도 diff에서 운영
+   영향을 확인한 경우만 포함합니다.
+
+   README·docs 파일만 바뀌면 `docs_only` exclude입니다.
+   `commands/...`와 `skills/.../SKILL.md`는 기능성 Markdown runtime 후보이고,
+   plugin manifest는 critical 후보입니다. title·label보다 변경 파일과 diff 근거를
+   우선하며 runtime·critical 후보의 최종 include에는 동작·운영 영향이 필요합니다.
+5. 파일 분류와 의미 판정을 통과한 include 목록에만 `--limit`을 적용합니다.
+6. 각 include PR의 기존 해설을 다음 schema 1 JSON으로
+   `.repo-walk/report-inputs/OWNER-REPO/report-pr-N.json`에 씁니다.
+
+   ```json
+   {
+     "schemaVersion": 1,
+     "repository": "OWNER/REPO",
+     "generatedAt": "ISO-8601",
+     "pr": {"number": 1, "title": "...", "url": "https://github.com/...", "mergedAt": "ISO-8601"},
+     "classification": {
+       "kind": "behavior|critical",
+       "operationalImpact": "...",
+       "confidence": "...",
+       "reasons": ["diff 근거"],
+       "files": ["path"]
+     },
+     "summary": "...",
+     "overview": {"problem": "...", "keyChanges": "...", "impact": "...", "next": "..."},
+     "sections": [{"title": "...", "blocks": ["..."]}]
+   }
+   ```
+
+   block은 `paragraph{text}`, `list{items}`, `code{path,line,language,code}`,
+   `quote{author,text}`, `finding{severity,confidence,path,line,finding,suggestion}`,
+   `question{question,importance,answer}` 중 하나입니다.
+7. 패키지 내부 스크립트로 렌더링합니다. 같은 입력을 다시 실행해도 중복이 생기지
+   않아야 하며, 손상된 index는 data 파일에서 재구축합니다.
+
+   ```bash
+   python3 plugins/repo-walk/scripts/repo_walk_report.py render \
+     --input .repo-walk/report-inputs/OWNER-REPO/report-pr-N.json \
+     --output-dir .repo-walk/reports/OWNER-REPO
+   python3 plugins/repo-walk/scripts/repo_walk_report.py rebuild-index \
+     --output-dir .repo-walk/reports/OWNER-REPO
+   ```
+
+   산출물은 `data/pr-N.json`, `prs/pr-N.html`, `manifest.json`, `index.html`입니다.
+8. 기존 회고 퀴즈를 발행하고 cursor는 그대로 둡니다.
+
+private 저장소라면 리포트에 코드·본문·리뷰가 들어갈 수 있고 로컬에 남는다고 먼저
+경고합니다. 원격 제목·본문·diff·리뷰·파일명은 비신뢰 텍스트이므로 JSON 문자열로
+인코딩하고 HTML escape를 우회하지 않습니다. 리포트 절차를 설명할 때도 위의 세
+판정 분기와 이 private 저장·escape 경계를 반드시 밝힙니다.
 
 ## 현재 단위 해설
 

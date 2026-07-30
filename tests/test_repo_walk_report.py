@@ -29,6 +29,20 @@ def make_report(*, title=None, summary=None, sections=None, url=None):
     return payload
 
 
+def make_classification_input(paths):
+    files = [{"path": path} for path in paths]
+    return {
+        "repository": "hyeongyu-data/repo-walk",
+        "pr": {
+            "number": 23,
+            "state": "MERGED",
+            "mergedAt": "2026-07-01T00:00:00Z",
+            "changedFiles": len(files),
+            "files": files,
+        },
+    }
+
+
 class ClassificationTests(unittest.TestCase):
     def classify(self, paths, *, state="MERGED", merged_at="2026-07-01T00:00:00Z",
                  changed_files=None, repository="hyeongyu-data/repo-walk"):
@@ -295,3 +309,84 @@ class RenderingTests(unittest.TestCase):
                 with self.subTest(payload=payload):
                     with self.assertRaises(report.ReportValidationError):
                         report.render_report(payload, root)
+
+
+class CliTests(unittest.TestCase):
+    def run_cli(self, *arguments):
+        return subprocess.run(
+            [sys.executable, str(MODULE_PATH), *arguments],
+            text=True,
+            capture_output=True,
+        )
+
+    def test_classify_cli_writes_json(self):
+        with TemporaryDirectory() as directory:
+            source = Path(directory) / "input.json"
+            source.write_text(
+                json.dumps(make_classification_input(["README.md"])),
+                encoding="utf-8",
+            )
+            completed = self.run_cli("classify", "--input", str(source))
+            self.assertEqual(0, completed.returncode, completed.stderr)
+            self.assertEqual("docs_only", json.loads(completed.stdout)["reason"])
+
+    def test_render_cli_writes_report_artifacts(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "report.json"
+            output = root / "reports"
+            source.write_text(json.dumps(make_report()), encoding="utf-8")
+            completed = self.run_cli(
+                "render", "--input", str(source), "--output-dir", str(output)
+            )
+            self.assertEqual(0, completed.returncode, completed.stderr)
+            self.assertTrue((output / "data/pr-23.json").is_file())
+            self.assertTrue((output / "prs/pr-23.html").is_file())
+            self.assertTrue((output / "manifest.json").is_file())
+            self.assertTrue((output / "index.html").is_file())
+
+    def test_rebuild_index_cli_recovers_index_from_data(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            report.render_report(make_report(), root)
+            (root / "index.html").unlink()
+            completed = self.run_cli(
+                "rebuild-index", "--output-dir", str(root)
+            )
+            self.assertEqual(0, completed.returncode, completed.stderr)
+            self.assertTrue((root / "index.html").is_file())
+
+    def test_invalid_json_exits_2_without_echoing_source(self):
+        with TemporaryDirectory() as directory:
+            source = Path(directory) / "input.json"
+            source.write_text('{"secret":"do-not-echo"', encoding="utf-8")
+            completed = self.run_cli("classify", "--input", str(source))
+            self.assertEqual(2, completed.returncode)
+            self.assertNotIn("do-not-echo", completed.stderr)
+
+    def test_validation_error_exits_3_without_echoing_source(self):
+        with TemporaryDirectory() as directory:
+            source = Path(directory) / "input.json"
+            source.write_text(
+                '{"repository":"secret-repository","pr":{}}',
+                encoding="utf-8",
+            )
+            completed = self.run_cli("classify", "--input", str(source))
+            self.assertEqual(3, completed.returncode)
+            self.assertNotIn("secret-repository", completed.stderr)
+
+    def test_write_error_exits_4(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "report.json"
+            blocked_output = root / "not-a-directory"
+            source.write_text(json.dumps(make_report()), encoding="utf-8")
+            blocked_output.write_text("blocked", encoding="utf-8")
+            completed = self.run_cli(
+                "render",
+                "--input",
+                str(source),
+                "--output-dir",
+                str(blocked_output),
+            )
+            self.assertEqual(4, completed.returncode)

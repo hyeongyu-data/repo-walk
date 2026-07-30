@@ -1,3 +1,4 @@
+import argparse
 import hashlib
 from html import escape
 import json
@@ -546,11 +547,60 @@ def render_report(payload: dict, output_root: Path) -> Path:
     return unit_path
 
 
-def main() -> None:
-    payload = json.load(sys.stdin)
-    json.dump(classify_pull_request(payload), sys.stdout, ensure_ascii=False, sort_keys=True)
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="repo-walk HTML 리포트 도구")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    classify = subparsers.add_parser("classify")
+    classify.add_argument("--input", required=True, type=Path)
+
+    render = subparsers.add_parser("render")
+    render.add_argument("--input", required=True, type=Path)
+    render.add_argument("--output-dir", required=True, type=Path)
+
+    rebuild = subparsers.add_parser("rebuild-index")
+    rebuild.add_argument("--output-dir", required=True, type=Path)
+    return parser
+
+
+def write_stdout_json(payload: dict) -> None:
+    json.dump(payload, sys.stdout, ensure_ascii=False, sort_keys=True)
     sys.stdout.write("\n")
 
 
+def load_json(path: Path):
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def run_command(arguments: argparse.Namespace) -> None:
+    if arguments.command == "classify":
+        write_stdout_json(classify_pull_request(load_json(arguments.input)))
+    elif arguments.command == "render":
+        render_report(load_json(arguments.input), arguments.output_dir)
+    else:
+        rebuild_index(arguments.output_dir)
+
+
+def main(argv=None) -> int:
+    effective_argv = sys.argv[1:] if argv is None else argv
+    if not effective_argv:
+        write_stdout_json(classify_pull_request(json.load(sys.stdin)))
+        return 0
+
+    arguments = build_parser().parse_args(effective_argv)
+    try:
+        run_command(arguments)
+    except json.JSONDecodeError:
+        print("JSON 입력을 해석할 수 없습니다.", file=sys.stderr)
+        return 2
+    except (ReportValidationError, ValueError):
+        print("입력 검증에 실패했습니다.", file=sys.stderr)
+        return 3
+    except OSError:
+        print("파일 처리에 실패했습니다.", file=sys.stderr)
+        return 4
+    return 0
+
+
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

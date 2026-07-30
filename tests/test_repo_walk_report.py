@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+from tempfile import TemporaryDirectory
 import unittest
 
 
@@ -11,6 +12,20 @@ MODULE_PATH = ROOT / "scripts" / "repo_walk_report.py"
 SPEC = importlib.util.spec_from_file_location("repo_walk_report", MODULE_PATH)
 report = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(report)
+
+
+def make_report(*, title=None, summary=None, sections=None, url=None):
+    fixture_path = ROOT / "tests" / "fixtures" / "report-23.json"
+    payload = json.loads(fixture_path.read_text(encoding="utf-8"))
+    if title is not None:
+        payload["pr"]["title"] = title
+    if summary is not None:
+        payload["summary"] = summary
+    if sections is not None:
+        payload["sections"] = sections
+    if url is not None:
+        payload["pr"]["url"] = url
+    return payload
 
 
 class ClassificationTests(unittest.TestCase):
@@ -91,3 +106,120 @@ class ClassificationTests(unittest.TestCase):
         self.assertEqual("runtime", result["candidateKind"])
         self.assertEqual("1", result["classifierVersion"])
         self.assertEqual(64, len(result["inputDigest"]))
+
+
+class RenderingTests(unittest.TestCase):
+    def fixture_payload(self, number):
+        fixture_path = ROOT / "tests" / "fixtures" / f"report-{number}.json"
+        return json.loads(fixture_path.read_text(encoding="utf-8"))
+
+    def test_remote_html_is_escaped_and_index_is_idempotent(self):
+        payload = make_report(
+            title='<script>alert("x")</script>',
+            summary="권한 <검증>을 추가",
+            sections=[{
+                "title": "1. 변경 해설",
+                "blocks": [{"type": "code", "path": "src/<app>.py", "line": 7,
+                            "language": "python", "code": "<script>bad()</script>"}],
+            }],
+        )
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            report.render_report(payload, root)
+            report.render_report(payload, root)
+            unit_html = (root / "prs/pr-23.html").read_text()
+            index_html = (root / "index.html").read_text()
+            self.assertNotIn("<script>", unit_html)
+            self.assertIn("&lt;script&gt;", unit_html)
+            self.assertEqual(1, index_html.count('href="prs/pr-23.html"'))
+
+    def test_invalid_report_preserves_existing_output(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            report.render_report(make_report(), root)
+            output_paths = [
+                root / "data/pr-23.json",
+                root / "prs/pr-23.html",
+                root / "manifest.json",
+                root / "index.html",
+            ]
+            before = {path: path.read_bytes() for path in output_paths}
+            with self.assertRaises(report.ReportValidationError):
+                report.render_report({"schemaVersion": 1}, root)
+            self.assertEqual(before, {path: path.read_bytes() for path in output_paths})
+
+    def test_corrupt_manifest_is_rebuilt_from_data_files(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            report.render_report(make_report(), root)
+            (root / "manifest.json").write_text("{broken")
+            report.rebuild_index(root)
+            manifest = json.loads((root / "manifest.json").read_text())
+            self.assertEqual([23], [entry["number"] for entry in manifest["reports"]])
+
+    def test_valid_update_atomically_replaces_existing_file(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            report.render_report(make_report(title="이전 제목"), root)
+            unit_path = root / "prs/pr-23.html"
+            with unit_path.open(encoding="utf-8") as previous_file:
+                previous_output = previous_file.read()
+                previous_file.seek(0)
+                report.render_report(make_report(title="새 제목"), root)
+                self.assertEqual(previous_output, previous_file.read())
+            current_output = unit_path.read_text(encoding="utf-8")
+            self.assertIn("새 제목", current_output)
+            self.assertNotIn("이전 제목", current_output)
+
+    def test_non_github_url_is_rendered_as_text(self):
+        payload = make_report(url="javascript:alert(1)")
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            report.render_report(payload, root)
+            output = (root / "prs/pr-23.html").read_text()
+            self.assertNotIn('href="javascript:', output)
+            self.assertIn("javascript:alert(1)", output)
+
+    def test_malformed_url_is_escaped_as_text(self):
+        payload = make_report(url="https://[broken/<script>")
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            report.render_report(payload, root)
+            output = (root / "prs/pr-23.html").read_text(encoding="utf-8")
+            self.assertNotIn('href="https://[broken/', output)
+            self.assertIn("https://[broken/&lt;script&gt;", output)
+
+    def test_all_supported_blocks_and_critical_index_card_are_rendered(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            report.render_report(self.fixture_payload(23), root)
+            report.render_report(self.fixture_payload(25), root)
+
+            unit_html = (root / "prs/pr-23.html").read_text(encoding="utf-8")
+            index_html = (root / "index.html").read_text(encoding="utf-8")
+            manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+
+            self.assertIn("<ul>", unit_html)
+            self.assertIn("<blockquote>", unit_html)
+            self.assertIn('class="finding"', unit_html)
+            self.assertIn('class="question"', unit_html)
+            self.assertIn("commands/&lt;repo-walk&gt;.md:210", unit_html)
+            self.assertNotIn("<script>", unit_html)
+            self.assertEqual([25, 23], [entry["number"] for entry in manifest["reports"]])
+            self.assertEqual(1, index_html.count('href="prs/pr-23.html"'))
+            self.assertEqual(1, index_html.count('href="prs/pr-25.html"'))
+            self.assertIn('class="badge critical"', index_html)
+
+    def test_schema_and_block_validation_rejects_malformed_remote_data(self):
+        invalid_payloads = [
+            [],
+            {**make_report(), "schemaVersion": 2},
+            {**make_report(), "sections": [{"title": "x", "blocks": [{"type": "video"}]}]},
+            {**make_report(), "classification": {**make_report()["classification"], "files": [""]}},
+        ]
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            for payload in invalid_payloads:
+                with self.subTest(payload=payload):
+                    with self.assertRaises(report.ReportValidationError):
+                        report.render_report(payload, root)

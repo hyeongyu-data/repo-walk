@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "repository": "hyeongyu-data/repo-walk",
+  "generatedAt": "2026-07-30T02:05:00Z",
+  "pr": {
+    "number": 25,
+    "title": "플러그인 version 갱신",
+    "url": "https://github.com/hyeongyu-data/repo-walk/pull/25",
+    "mergedAt": "2026-07-27T08:56:27Z"
+  },
+  "classification": {
+    "kind": "critical",
+    "operationalImpact": "critical",
+    "confidence": "high",
+    "reasons": ["설치 캐시 무효화에 필요한 배포 매니페스트 변경"],
+    "files": [".claude-plugin/plugin.json", "plugins/repo-walk/.codex-plugin/plugin.json"]
+  },
+  "summary": "플러그인 캐시가 새 동작을 배포하도록 버전을 갱신했습니다.",
+  "overview": {
+    "problem": "버전이 같으면 설치 캐시에 이전 스킬이 남습니다.",
+    "keyChanges": "두 플랫폼 매니페스트 버전을 올렸습니다.",
+    "impact": "새 설치와 재설치가 최신 동작을 받습니다.",
+    "next": "기능 변경마다 버전 계약을 검증합니다."
+  },
+  "sections": [
+    {
+      "title": "1. 변경 해설",
+      "blocks": [
+        {"type": "paragraph", "text": "매니페스트는 실행 코드가 아니어도 배포 결과를 바꿉니다."}
+      ]
+    }
+  ]
+}

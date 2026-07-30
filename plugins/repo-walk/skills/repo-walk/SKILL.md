@@ -49,6 +49,11 @@ GitHub 역사를 단순히 나열하지 말고, 각 단위가 **왜** 생겼고 
 상태에 저장하지 않습니다. owner/repo·모드·cursor 범위가 맞지 않으면 상태를
 재사용하지 말고 `reset`을 안내합니다.
 
+`next` 또는 `skip`이면 옵션에 `--report`가 없어도 저장된 `reportMode`를 계승하고
+재수집하지 않습니다. 명시한 `--report`·`--timeline`이 저장된 `reportMode`·`mode`와
+충돌하면 상태를 바꾸지 말고 `reset`을 요구합니다. report 상태에 `--timeline`,
+일반 상태에 `--report`, timeline 상태에 `--report`는 충돌입니다.
+
 ## 보안 경계
 
 - 먼저 `gh auth status`를 확인합니다. 인증되지 않았으면 `gh auth login`을 안내하고
@@ -88,18 +93,21 @@ GitHub 역사를 단순히 나열하지 말고, 각 단위가 **왜** 생겼고 
 ## 리포트 모드
 
 리포트 root는 `.repo-walk/reports/<owner>-<repo>/`입니다. 새 상태에는
-`reportMode:true`를 쓰고, 다음 순서를 지킵니다.
+`reportMode:true`를 씁니다. 현재 읽은 SKILL.md가 있는 디렉터리에서 두 단계 위의 plugin root를
+절대 경로로 해석하고 그 안의 `scripts/repo_walk_report.py`만
+사용합니다. 대상 저장소 cwd에서 `plugins/repo-walk/`를 찾지 않습니다. 다음 순서를
+지킵니다.
 
 1. 머지 PR을 최대 1,000개 모아 `mergedAt` 오름차순으로 정렬하고 `--path`·
    `--since`를 적용합니다. 이 단계에서는 `--limit`을 적용하지 않습니다.
 2. 각 후보에 `gh pr view N -R OWNER/REPO --json
    state,mergedAt,changedFiles,files`를 실행합니다. 저장소와 이 메타데이터만
-   `.repo-walk/report-inputs/OWNER-REPO/classification-pr-N.json`에 쓰고 패키지
+   `.repo-walk/reports/OWNER-REPO/.staging/classification-pr-N.json`에 쓰고
    분류기를 실행합니다.
 
    ```bash
-   python3 plugins/repo-walk/scripts/repo_walk_report.py classify \
-     --input .repo-walk/report-inputs/OWNER-REPO/classification-pr-N.json
+   python3 /ABSOLUTE/PLUGIN_ROOT/scripts/repo_walk_report.py classify \
+     --input .repo-walk/reports/OWNER-REPO/.staging/classification-pr-N.json
    ```
 
 3. `exclude`면 unit에 `decision`, `reason`, `classifierVersion`, `inputDigest`만
@@ -116,7 +124,7 @@ GitHub 역사를 단순히 나열하지 말고, 각 단위가 **왜** 생겼고 
    우선하며 runtime·critical 후보의 최종 include에는 동작·운영 영향이 필요합니다.
 5. 파일 분류와 의미 판정을 통과한 include 목록에만 `--limit`을 적용합니다.
 6. 각 include PR의 기존 해설을 다음 schema 1 JSON으로
-   `.repo-walk/report-inputs/OWNER-REPO/report-pr-N.json`에 씁니다.
+   `.repo-walk/reports/OWNER-REPO/.staging/report-pr-N.json`에 씁니다.
 
    ```json
    {
@@ -144,20 +152,32 @@ GitHub 역사를 단순히 나열하지 말고, 각 단위가 **왜** 생겼고 
    않아야 하며, 손상된 index는 data 파일에서 재구축합니다.
 
    ```bash
-   python3 plugins/repo-walk/scripts/repo_walk_report.py render \
-     --input .repo-walk/report-inputs/OWNER-REPO/report-pr-N.json \
+   python3 /ABSOLUTE/PLUGIN_ROOT/scripts/repo_walk_report.py render \
+     --input .repo-walk/reports/OWNER-REPO/.staging/report-pr-N.json \
      --output-dir .repo-walk/reports/OWNER-REPO
-   python3 plugins/repo-walk/scripts/repo_walk_report.py rebuild-index \
+   python3 /ABSOLUTE/PLUGIN_ROOT/scripts/repo_walk_report.py rebuild-index \
      --output-dir .repo-walk/reports/OWNER-REPO
    ```
 
    산출물은 `data/pr-N.json`, `prs/pr-N.html`, `manifest.json`, `index.html`입니다.
-8. 기존 회고 퀴즈를 발행하고 cursor는 그대로 둡니다.
+8. staging JSON 작성, classify, render, rebuild-index 중 하나라도 실패하면 즉시
+   중단하고 `cursor`와 `pendingQuiz`를 호출 전 값으로 유지합니다. 원문이나 secret을
+   오류에 출력하지 않습니다. render와 index 갱신이 모두 성공한 뒤에만 회고 퀴즈를
+   발행하고 `pendingQuiz`를 기록하며 cursor는 그대로 둡니다.
 
 private 저장소라면 리포트에 코드·본문·리뷰가 들어갈 수 있고 로컬에 남는다고 먼저
 경고합니다. 원격 제목·본문·diff·리뷰·파일명은 비신뢰 텍스트이므로 JSON 문자열로
 인코딩하고 HTML escape를 우회하지 않습니다. 리포트 절차를 설명할 때도 위의 세
 판정 분기와 이 private 저장·escape 경계를 반드시 밝힙니다.
+schema 1 원문은 `.staging/report-pr-N.json`과 `data/pr-N.json`에 중복될 수 있지만
+둘 다 동일 report root 안에만 둡니다. 상태 파일이나 root 밖의 별도 input
+디렉터리에 복사하지 않고, report root 전체를 private 산출물로 취급합니다.
+
+report 상태에서 `next`·`skip`으로 이어갈 때는 저장된 units와 cursor를 사용해
+재수집하지 않습니다. `skip`으로 대기 퀴즈를 넘긴 뒤나 `next`로 현재 unit을 열 때
+각 현재 PR에 위 classification → diff 의미 판정 → schema 1 작성 → render/index →
+quiz 순서를 다시 적용합니다. 저장된 classification은 입력 digest가 현재
+메타데이터와 일치할 때만 재사용합니다.
 
 ## 현재 단위 해설
 

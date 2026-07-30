@@ -117,8 +117,26 @@ state를 쓴 뒤 다시 읽어 schema·owner/repo·units·cursor를 확인하고
 1. 머지 PR을 최대 1,000개 모아 `mergedAt` 오름차순으로 정렬하고 `--since`를
    적용합니다. 이 단계에서는 `--path`·`--limit`을 적용하지 않습니다.
 2. 각 후보에 `gh pr view N -R OWNER/REPO --json
-   state,mergedAt,changedFiles,files`를 실행합니다. 저장소와 이 메타데이터만
-   `.repo-walk/reports/OWNER-REPO/.staging/classification-pr-N.json`에 쓰고
+   state,mergedAt,changedFiles,files`를 실행합니다. `gh pr view` 응답을 `pr` 객체
+   아래에 넣고, 응답에 포함되지 않은 현재 후보 `N`을 `pr.number`로 보강해 아래
+   shape의 JSON을 만듭니다.
+
+   ```json
+   {
+     "repository": "OWNER/REPO",
+     "pr": {
+       "number": 123,
+       "state": "MERGED",
+       "mergedAt": "ISO-8601",
+       "changedFiles": 1,
+       "files": [{"path": "src/example.py"}]
+     }
+   }
+   ```
+
+   예시의 `123`은 현재 후보 `N`으로 치환합니다.
+   저장소와 이 메타데이터 외의 본문·diff·리뷰는 넣지 않고
+   `.repo-walk/reports/OWNER-REPO/.staging/classification-pr-N.json`에 씁니다.
    `--path`는 파일 메타데이터를 조회한 뒤 적용하고, 일치하는 후보만 분류기를
    실행합니다. 즉 `--since`는 초기 목록에서 적용하고, `--path`는 파일 메타데이터를 조회한 뒤 적용합니다.
 

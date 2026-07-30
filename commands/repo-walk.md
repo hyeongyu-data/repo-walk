@@ -156,8 +156,25 @@ root인 `${CLAUDE_PLUGIN_ROOT}`의 script만 사용하고 대상 저장소 cwd�
 
    `--path`는 이 파일 메타데이터를 조회한 뒤 적용하며, 일치하지 않는 PR은 분류기에
    넘기지 않습니다.
-3. 저장소·PR 번호·state·mergedAt·changedFiles·`files:[{"path":"..."}]`만 담은
-   JSON을 report root의 `.staging/classification-pr-N.json`에 쓰고 분류기를
+3. `gh pr view` 응답을 `pr` 객체 아래에 넣고, 응답에 포함되지 않은 현재 후보
+   `N`을 `pr.number`로 보강해 아래 shape의 JSON을 만듭니다. 저장소와 이
+   메타데이터 외의 본문·diff·리뷰는 넣지 않습니다.
+
+   ```json
+   {
+     "repository": "OWNER/REPO",
+     "pr": {
+       "number": 123,
+       "state": "MERGED",
+       "mergedAt": "ISO-8601",
+       "changedFiles": 1,
+       "files": [{"path": "src/example.py"}]
+     }
+   }
+   ```
+
+   예시의 `123`은 현재 후보 `N`으로 치환합니다.
+   이 JSON을 report root의 `.staging/classification-pr-N.json`에 쓰고 분류기를
    실행합니다.
 
    ```bash

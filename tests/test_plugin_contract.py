@@ -37,6 +37,12 @@ class PluginPackageTests(unittest.TestCase):
             "Codex": " ".join(CODEX_SKILL.read_text(encoding="utf-8").split()),
         }
 
+    def adapter_sources(self):
+        return {
+            "Claude": CLAUDE_COMMAND.read_text(encoding="utf-8"),
+            "Codex": CODEX_SKILL.read_text(encoding="utf-8"),
+        }
+
     def test_report_feature_manifests_share_version_0_3_0(self):
         claude_manifest = json.loads(
             (ROOT / ".claude-plugin/plugin.json").read_text(encoding="utf-8")
@@ -146,6 +152,40 @@ class PluginPackageTests(unittest.TestCase):
                     text,
                 )
                 self.assertIn("report root 밖의 별도 input", text)
+
+    def test_both_adapters_build_complete_classifier_input_from_gh_metadata(self):
+        marker = "`gh pr view` 응답을 `pr` 객체"
+        for adapter, source_text in self.adapter_sources().items():
+            with self.subTest(adapter=adapter):
+                section = source_text.split(marker, 1)[1]
+                normalized_section = " ".join(section.split())
+                self.assertIn(
+                    "현재 후보 `N`을 `pr.number`로 보강",
+                    normalized_section,
+                )
+                json_text = section.split("```json", 1)[1].split("```", 1)[0]
+                payload = json.loads(json_text)
+                self.assertEqual(123, payload["pr"]["number"])
+
+                with TemporaryDirectory() as directory:
+                    source = Path(directory) / "classification.json"
+                    source.write_text(json.dumps(payload), encoding="utf-8")
+                    completed = subprocess.run(
+                        [
+                            sys.executable,
+                            str(ROOT / "scripts/repo_walk_report.py"),
+                            "classify",
+                            "--input",
+                            str(source),
+                        ],
+                        text=True,
+                        capture_output=True,
+                        check=True,
+                    )
+                self.assertEqual(
+                    "candidate",
+                    json.loads(completed.stdout)["decision"],
+                )
 
     def test_both_adapters_handle_every_review_reason_conservatively(self):
         required = (

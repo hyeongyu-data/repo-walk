@@ -1,22 +1,25 @@
 {
   "name": "repo-walk",
-  "version": "0.3.0+codex.20260730030933",
-  "description": "GitHub 저장소 역사를 단계별로 해설하는 Codex 전용 플러그인",
+  "version": "0.3.0+codex.20260730042949",
+  "description": "GitHub \uc800\uc7a5\uc18c \uc5ed\uc0ac\ub97c \ub2e8\uacc4\ubcc4\ub85c \ud574\uc124\ud558\ub294 Codex \uc804\uc6a9 \ud50c\ub7ec\uadf8\uc778",
   "author": {
     "name": "hyeongyu-data"
   },
   "skills": "./skills/",
   "interface": {
     "displayName": "repo-walk",
-    "shortDescription": "GitHub 역사를 단계별로 읽고 해설합니다.",
-    "longDescription": "PR·이슈·커밋의 변화를 시간순으로 읽으며 왜·무엇을·어떻게가 이어지는지 설명합니다.",
+    "shortDescription": "GitHub \uc5ed\uc0ac\ub97c \ub2e8\uacc4\ubcc4\ub85c \uc77d\uace0 \ud574\uc124\ud569\ub2c8\ub2e4.",
+    "longDescription": "PR\u00b7\uc774\uc288\u00b7\ucee4\ubc0b\uc758 \ubcc0\ud654\ub97c \uc2dc\uac04\uc21c\uc73c\ub85c \uc77d\uc73c\uba70 \uc65c\u00b7\ubb34\uc5c7\uc744\u00b7\uc5b4\ub5bb\uac8c\uac00 \uc774\uc5b4\uc9c0\ub294\uc9c0 \uc124\uba85\ud569\ub2c8\ub2e4.",
     "developerName": "hyeongyu-data",
     "category": "Productivity",
-    "capabilities": ["Interactive", "Read"],
+    "capabilities": [
+      "Interactive",
+      "Read"
+    ],
     "defaultPrompt": [
-      "hyeongyu-data/repo-walk의 역사를 PR 순서대로 설명해줘.",
-      "owner/repo를 시간순으로 한 단계씩 읽어줘.",
-      "현재 저장소의 최근 PR 변화를 학습 자료로 정리해줘."
+      "hyeongyu-data/repo-walk\uc758 \uc5ed\uc0ac\ub97c PR \uc21c\uc11c\ub300\ub85c \uc124\uba85\ud574\uc918.",
+      "owner/repo\ub97c \uc2dc\uac04\uc21c\uc73c\ub85c \ud55c \ub2e8\uacc4\uc529 \uc77d\uc5b4\uc918.",
+      "\ud604\uc7ac \uc800\uc7a5\uc18c\uc758 \ucd5c\uadfc PR \ubcc0\ud654\ub97c \ud559\uc2b5 \uc790\ub8cc\ub85c \uc815\ub9ac\ud574\uc918."
     ]
   }
 }

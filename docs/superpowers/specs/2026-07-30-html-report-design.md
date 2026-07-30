@@ -171,7 +171,11 @@ PR별 JSON은 다음 상위 필드를 갖는다.
 - `repository`
 - `generatedAt`
 - `pr`: 번호, 제목, URL, 머지 시각
-- `classification`: 종류, 영향도, 신뢰도, 포함 근거, 변경 파일
+- `classification`: `decision:"include"`, `kind`(`behavior|critical`),
+  boolean `behaviorChanged`, `operationalImpact`(`none|material|critical`),
+  `confidence`(`low|medium|high`), 비어 있지 않은 포함 이유·변경 파일·
+  `evidence:[{path,claim}]`, 비어 있지 않은 `classifierVersion`, 64자 소문자
+  SHA-256 `inputDigest`
 - `summary`: 인덱스와 PR 제목 아래에 표시할 한 줄 요약
 - `overview`: 문제, 핵심 변경, 영향 범위, 다음 연결
 - `sections`: 변경 해설·리뷰 해설·직접 코드리뷰·학습 포인트 섹션 배열
@@ -186,7 +190,9 @@ PR별 JSON은 다음 상위 필드를 갖는다.
 - `question`: 질문·왜 중요한가·모범 답안
 
 필수 메타데이터가 없거나 타입이 맞지 않으면 렌더링하지 않는다. 알 수 없는 추가
-필드는 무시하여 이후 스키마 확장을 허용한다.
+필드는 무시하여 이후 스키마 확장을 허용한다. evidence path는 변경 파일 목록에
+있어야 하고, `behaviorChanged == true` 또는 운영 영향이 `material|critical`인
+경우만 렌더링한다. 분류기 provenance는 비어 있지 않으면 이후 버전도 보존한다.
 
 ## HTML 설계
 

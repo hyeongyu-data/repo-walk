@@ -9,11 +9,21 @@
     "mergedAt": "2026-07-27T08:56:27Z"
   },
   "classification": {
+    "decision": "include",
     "kind": "critical",
+    "behaviorChanged": false,
     "operationalImpact": "critical",
     "confidence": "high",
     "reasons": ["설치 캐시 무효화에 필요한 배포 매니페스트 변경"],
-    "files": [".claude-plugin/plugin.json", "plugins/repo-walk/.codex-plugin/plugin.json"]
+    "files": [".claude-plugin/plugin.json", "plugins/repo-walk/.codex-plugin/plugin.json"],
+    "evidence": [
+      {
+        "path": "plugins/repo-walk/.codex-plugin/plugin.json",
+        "claim": "설치 cachebuster version이 변경됨"
+      }
+    ],
+    "classifierVersion": "1",
+    "inputDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
   },
   "summary": "플러그인 캐시가 새 동작을 배포하도록 버전을 갱신했습니다.",
   "overview": {

@@ -218,11 +218,16 @@ git commit -m "feat: 중요 변경 분류기 추가"
     "mergedAt": "2026-07-17T15:06:44Z"
   },
   "classification": {
+    "decision": "include",
     "kind": "behavior",
+    "behaviorChanged": true,
     "operationalImpact": "material",
     "confidence": "high",
     "reasons": ["기능성 Markdown이 해설 동작을 변경함"],
-    "files": ["commands/repo-walk.md", "plugins/repo-walk/skills/repo-walk/SKILL.md"]
+    "files": ["commands/repo-walk.md", "plugins/repo-walk/skills/repo-walk/SKILL.md"],
+    "evidence": [{"path": "commands/repo-walk.md", "claim": "심화 질문 출력 계약을 추가함"}],
+    "classifierVersion": "1",
+    "inputDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   },
   "summary": "심화 질문에 근거 기반 모범 답안을 추가했습니다.",
   "overview": {
@@ -276,11 +281,16 @@ git commit -m "feat: 중요 변경 분류기 추가"
     "mergedAt": "2026-07-27T08:56:27Z"
   },
   "classification": {
+    "decision": "include",
     "kind": "critical",
+    "behaviorChanged": false,
     "operationalImpact": "critical",
     "confidence": "high",
     "reasons": ["설치 캐시 무효화에 필요한 배포 매니페스트 변경"],
-    "files": [".claude-plugin/plugin.json", "plugins/repo-walk/.codex-plugin/plugin.json"]
+    "files": [".claude-plugin/plugin.json", "plugins/repo-walk/.codex-plugin/plugin.json"],
+    "evidence": [{"path": "plugins/repo-walk/.codex-plugin/plugin.json", "claim": "설치 cachebuster version이 변경됨"}],
+    "classifierVersion": "1",
+    "inputDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
   },
   "summary": "플러그인 캐시가 새 동작을 배포하도록 버전을 갱신했습니다.",
   "overview": {
@@ -517,8 +527,10 @@ Claude frontmatter에는 저장소 안의 정확한 스크립트 경로를 실�
 `Bash(python3 ...)` 허용만 추가한다.
 
 순회 상태는 `"schemaVersion": 3`으로 올리고 기존 상태에는 `reportMode:false`,
-각 unit에는 필요한 경우 `classification:{decision,reason,classifierVersion,
-inputDigest}`만 추가한다. 코드·리뷰·해설 원문은 상태 파일에 넣지 않는다.
+각 unit에는 필요한 경우
+`classification:{decision,reason,candidateKind,classifierVersion,inputDigest}`와
+최소 의미 판정(`kind`, `behaviorChanged`, `operationalImpact`, `confidence`)만
+추가한다. 코드·리뷰·해설 원문은 상태 파일에 넣지 않는다.
 
 - [ ] **Step 6: Codex skill에 같은 판정·JSON·렌더링 계약 추가**
 

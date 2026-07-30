@@ -46,12 +46,20 @@ Claude Code 커맨드 마크다운(`commands/*.md`)의 작성 스타일, 구성,
   실제 동작·운영 영향을 판정한 뒤에만 `--limit`을 적용합니다. 닫힌 미머지 PR,
   문서·테스트·생성물·vendor 전용 PR, 외형·문구만 바뀐 PR은 제외합니다. 기능성
   Markdown과 critical 후보도 파일명만으로 포함하지 않고 diff 근거를 요구합니다.
+- 첫 report 호출의 수집·분류·의미 판정은 적격 최소 메타데이터 `units`를 만든 뒤
+  `units[cursor]` 하나만 해설·렌더링·퀴즈 처리합니다. `next`는 대기 퀴즈가 있으면
+  답변/`skip`만 안내하고, 답변/`skip`은 cursor를 한 칸 전진시킨 뒤 멈춥니다.
+- report classification은 strict include decision, 제한된 kind/영향도/신뢰도,
+  동작 변경 boolean, 비어 있지 않은 이유·파일·diff evidence와 분류기
+  provenance/digest를 포함합니다. renderer가 의미 include 식을 다시 검증합니다.
 - Claude 패키지는 `${CLAUDE_PLUGIN_ROOT}/scripts/repo_walk_report.py`만 실행합니다.
   현재 작업 디렉터리의 상대 `scripts/`를 사용하지 않습니다. 분류 입력과 리포트
   입력을 포함한 모든 산출물은 `.repo-walk/reports/<owner>-<repo>/` 아래에 둡니다.
-  `render` 뒤에는 `rebuild-index`로 저장된 PR 전체의 `index.html`을 갱신합니다.
+  `render`가 PR JSON/HTML과 저장된 PR 전체의 manifest/index를 함께 원자적으로
+  갱신합니다. `rebuild-index`는 손상된 집계의 명시적 복구에만 사용합니다.
 - 리포트 도구가 실패하면 cursor와 `pendingQuiz`를 전진시키지 않고 즉시 멈춥니다.
-  private 저장소의 리포트는 로컬 민감 데이터이며 업로드·배포하지 않습니다.
+  이미 저장된 적격 units는 보존해 재수집하지 않습니다. private 저장소의 리포트는
+  로컬 민감 데이터이며 업로드·배포하지 않습니다.
 - 인과 주장은 추론임을 프롬프트가 인지하도록 합니다(확신 없으면 사실로
   단정하지 않기).
 - 사용자에게 보여주는 결과는 제목·한 줄 요약·"한눈에 보기" 표로 시작하고,

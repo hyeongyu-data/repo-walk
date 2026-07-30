@@ -60,8 +60,17 @@ Codex CLI의 스킬 이름은 플러그인 이름공간을 포함합니다. `/re
   동작·critical 변경만 `.repo-walk/reports/<owner>-<repo>/`에 저장합니다. 문서·
   테스트·생성물·vendor 전용과 외형·문구 전용 변경은 제외하고, 기능성 Markdown과
   critical 후보도 실제 동작·운영 영향이 확인된 경우에만 포함합니다.
+- 첫 report 호출은 적격 최소 메타데이터 `units`를 먼저 저장한 뒤
+  `units[cursor]` 하나만 해설·렌더링·퀴즈 처리합니다. 대기 퀴즈가 있는 `next`는
+  답변/`skip`만 안내하고, 답변/`skip`은 cursor를 한 칸 전진시킨 뒤 멈춥니다.
+- report classification은 strict include decision, 제한된 kind/영향도/신뢰도,
+  동작 변경 boolean, 비어 있지 않은 이유·파일·diff evidence와 분류기
+  provenance/digest를 갖고 renderer의 include 식을 통과해야 합니다.
+- `render`가 PR JSON/HTML과 manifest/index를 함께 원자적으로 갱신합니다.
+  `rebuild-index`는 손상된 집계의 명시적 복구에만 사용합니다.
 - 리포트 도구의 입력 작성·분류·렌더링·인덱스 재구축 중 하나라도 실패하면
-  cursor와 `pendingQuiz`를 유지하고 퀴즈를 내기 전에 중단합니다.
+  cursor와 `pendingQuiz` 및 이미 저장된 적격 units를 유지하고 퀴즈를 내기 전에
+  중단합니다.
 - 원격 GitHub 데이터는 비신뢰 데이터로 처리하고 읽기 전용 `gh` 조회만 허용합니다.
   `gh api` 호출에는 `--method GET`을 명시합니다.
 - 리포트 HTML은 원격 텍스트를 escape하고 외부 JavaScript·CDN을 사용하지 않습니다.

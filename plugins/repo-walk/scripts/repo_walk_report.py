@@ -4,6 +4,7 @@ from html import escape
 import json
 import os
 from pathlib import Path
+import re
 import sys
 from tempfile import NamedTemporaryFile
 from urllib.parse import urlsplit
@@ -11,58 +12,238 @@ from urllib.parse import urlsplit
 
 CLASSIFIER_VERSION = "1"
 
+DEPENDENCY_FILENAMES = {
+    "bun.lock",
+    "bun.lockb",
+    "cargo.lock",
+    "cargo.toml",
+    "composer.json",
+    "composer.lock",
+    "deno.json",
+    "deno.jsonc",
+    "flake.lock",
+    "flake.nix",
+    "gemfile",
+    "gemfile.lock",
+    "go.mod",
+    "go.sum",
+    "gradle.lockfile",
+    "mix.exs",
+    "mix.lock",
+    "npm-shrinkwrap.json",
+    "package-lock.json",
+    "package.json",
+    "package.resolved",
+    "package.swift",
+    "packages.lock.json",
+    "pipfile",
+    "pipfile.lock",
+    "pnpm-lock.yaml",
+    "poetry.lock",
+    "pom.xml",
+    "pubspec.lock",
+    "pubspec.yaml",
+    "pyproject.toml",
+    "uv.lock",
+    "yarn.lock",
+}
+GENERATED_SEGMENTS = {
+    ".next",
+    "build",
+    "coverage",
+    "dist",
+    "generated",
+    "node_modules",
+    "out",
+    "target",
+    "vendor",
+}
+SOURCE_SUFFIXES = {
+    ".bash",
+    ".c",
+    ".cc",
+    ".clj",
+    ".cljs",
+    ".cpp",
+    ".cs",
+    ".dart",
+    ".erl",
+    ".ex",
+    ".exs",
+    ".fish",
+    ".fs",
+    ".go",
+    ".h",
+    ".hpp",
+    ".hrl",
+    ".java",
+    ".js",
+    ".jsx",
+    ".kt",
+    ".kts",
+    ".lua",
+    ".mjs",
+    ".php",
+    ".ps1",
+    ".py",
+    ".rb",
+    ".rs",
+    ".scala",
+    ".sh",
+    ".sol",
+    ".svelte",
+    ".swift",
+    ".ts",
+    ".tsx",
+    ".vue",
+    ".zsh",
+}
+
 
 class ReportValidationError(ValueError):
     pass
 
 
+def path_parts(path: str) -> tuple[str, ...]:
+    return tuple(part.lower() for part in path.split("/") if part)
+
+
 def is_critical_path(path: str) -> bool:
-    return (
-        path.startswith((".github/workflows/", "github/workflows/"))
-        or path in {".claude-plugin/plugin.json", "claude-plugin/plugin.json"}
-        or path == "codex-plugin/plugin.json"
-        or path.endswith(("/.codex-plugin/plugin.json", "/codex-plugin/plugin.json"))
+    parts = path_parts(path)
+    name = parts[-1] if parts else ""
+    suffix = Path(name).suffix.lower()
+    if name in DEPENDENCY_FILENAMES:
+        return True
+    if (
+        (name.startswith("requirements") and suffix in {".in", ".txt"})
+        or name.endswith((".csproj", ".fsproj", ".gradle", ".gradle.kts", ".nuspec", ".vbproj"))
+    ):
+        return True
+    if (
+        path in {".claude-plugin/plugin.json", ".codex-plugin/plugin.json"}
+        or path.endswith(("/.claude-plugin/plugin.json", "/.codex-plugin/plugin.json"))
+    ):
+        return True
+    if (
+        path.startswith((".github/actions/", ".github/workflows/"))
+        or name in {
+            ".gitlab-ci.yml",
+            ".releaserc",
+            ".releaserc.json",
+            ".travis.yml",
+            "action.yml",
+            "action.yaml",
+            "azure-pipelines.yml",
+            "docker-compose.yml",
+            "docker-compose.yaml",
+            "dockerfile",
+            "jenkinsfile",
+            "makefile",
+            "release-please-config.json",
+            "setup.cfg",
+            "setup.py",
+        }
+        or name.startswith("dockerfile.")
+        or suffix in {".tf", ".tfvars"}
+        or set(parts) & {
+            ".circleci",
+            "ansible",
+            "cloudformation",
+            "deploy",
+            "deployment",
+            "helm",
+            "infra",
+            "infrastructure",
+            "k8s",
+            "kubernetes",
+            "packaging",
+            "pulumi",
+            "release",
+            "releases",
+            "terraform",
+        }
+    ):
+        return True
+    if (
+        suffix in {".gql", ".graphql", ".prisma", ".proto", ".sql"}
+        or name.startswith(("openapi.", "swagger."))
+        or set(parts) & {"database", "db", "migration", "migrations", "schema", "schemas"}
+    ):
+        return True
+    stem = Path(name).stem.lower()
+    security_names = {
+        "auth",
+        "authentication",
+        "authorization",
+        "crypto",
+        "cryptography",
+        "oauth",
+        "security",
+    }
+    return suffix in SOURCE_SUFFIXES and (
+        bool(set(parts) & security_names)
+        or stem in security_names
+        or any(stem.startswith(f"{prefix}_") for prefix in security_names)
     )
 
 
 def is_test_path(path: str) -> bool:
+    parts = path_parts(path)
     name = path.rsplit("/", 1)[-1]
     return (
-        path.startswith(("test/", "tests/", "spec/", "specs/"))
-        or name.startswith("test_")
-        or name.endswith(("_test.py", ".test.js", ".test.ts", ".spec.js", ".spec.ts"))
+        bool(set(parts) & {"__tests__", "spec", "specs", "test", "tests"})
+        or name.lower().startswith("test_")
+        or "_test." in name.lower()
+        or ".test." in name.lower()
+        or ".spec." in name.lower()
+        or name.endswith(("Test.java", "Test.kt", "Tests.cs"))
     )
 
 
 def is_generated_or_vendor_path(path: str) -> bool:
-    return path.startswith(("vendor/", "generated/", "dist/", "build/", "coverage/"))
+    return bool(set(path_parts(path)) & GENERATED_SEGMENTS)
 
 
 def is_docs_path(path: str) -> bool:
-    name = path.rsplit("/", 1)[-1]
-    return path.startswith(("docs/", ".claude/docs/")) or name.lower().startswith("readme") or name.endswith(".md")
+    parts = path_parts(path)
+    name = parts[-1] if parts else ""
+    stem = name.split(".", 1)[0]
+    return (
+        bool(set(parts) & {"doc", "docs", "documentation"})
+        or stem in {"changelog", "contributing", "readme"}
+        or name.endswith((".adoc", ".markdown", ".md", ".mdx", ".rst"))
+    )
 
 
 def is_runtime_path(path: str) -> bool:
-    return path.startswith(("src/", "lib/", "scripts/", "bin/"))
+    parts = path_parts(path)
+    name = parts[-1] if parts else ""
+    return (
+        Path(name).suffix.lower() in SOURCE_SUFFIXES
+        or name in {"rakefile"}
+        or bool(set(parts) & {"bin", "cmd", "lib", "scripts", "src"})
+    )
 
 
 def classify_path(path: str, repository: str) -> str:
-    normalized = path.replace("\\", "/").lstrip("./")
+    normalized = path.replace("\\", "/")
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
+    normalized = normalized.lstrip("/")
     if repository == "hyeongyu-data/repo-walk" and (
         normalized == "commands/repo-walk.md"
         or normalized.startswith("plugins/repo-walk/skills/")
         or normalized.startswith("codex/prompts/")
     ):
         return "runtime"
-    if is_critical_path(normalized):
-        return "critical"
     if is_test_path(normalized):
         return "test"
     if is_generated_or_vendor_path(normalized):
         return "generated"
     if is_docs_path(normalized):
         return "docs"
+    if is_critical_path(normalized):
+        return "critical"
     if is_runtime_path(normalized):
         return "runtime"
     return "other"
@@ -114,10 +295,10 @@ def sole_or_mixed_non_runtime_reason(roles: list[str]) -> str:
     if unique_roles == {"docs"}:
         return "docs_only"
     if unique_roles == {"test"}:
-        return "tests_only"
+        return "test_only"
     if unique_roles == {"generated"}:
         return "generated_only"
-    return "non_runtime_files"
+    return "non_runtime_only"
 
 
 def classify_pull_request(payload: dict) -> dict:
@@ -128,9 +309,12 @@ def classify_pull_request(payload: dict) -> dict:
     if pr["changedFiles"] != len(pr["files"]):
         return classification_result(validated, "review", "incomplete_metadata")
     roles = [classify_path(item["path"], validated["repository"]) for item in pr["files"]]
-    if not roles or set(roles) == {"other"}:
+    role_set = set(roles)
+    if "runtime" not in role_set and "critical" not in role_set and (
+        not roles or "other" in role_set
+    ):
         return classification_result(validated, "review", "unknown_files", roles)
-    if set(roles) <= {"docs", "test", "generated"}:
+    if role_set <= {"docs", "test", "generated"}:
         reason = sole_or_mixed_non_runtime_reason(roles)
         return classification_result(validated, "exclude", reason, roles)
     candidate_kind = "critical" if "critical" in roles else "runtime"
@@ -162,10 +346,21 @@ def require_integer(mapping: dict, key: str) -> int:
     return value
 
 
-def require_string_list(mapping: dict, key: str) -> list[str]:
+def require_string_list(mapping: dict, key: str, *, nonempty: bool = False) -> list[str]:
     value = mapping.get(key)
-    if not isinstance(value, list) or any(not isinstance(item, str) or not item for item in value):
+    if (
+        not isinstance(value, list)
+        or (nonempty and not value)
+        or any(not isinstance(item, str) or not item for item in value)
+    ):
         raise ReportValidationError(f"{key}는 비어 있지 않은 문자열의 배열이어야 합니다.")
+    return value
+
+
+def require_enum(mapping: dict, key: str, allowed: set[str]) -> str:
+    value = require_string(mapping, key)
+    if value not in allowed:
+        raise ReportValidationError(f"{key} 값이 허용된 범위에 없습니다.")
     return value
 
 
@@ -179,10 +374,34 @@ def validate_pr(value) -> dict:
 
 def validate_classification(value) -> dict:
     classification = require_mapping(value, "classification")
-    for key in ("kind", "operationalImpact", "confidence"):
-        require_string(classification, key)
-    require_string_list(classification, "reasons")
-    require_string_list(classification, "files")
+    require_equal(classification, "decision", "include")
+    require_enum(classification, "kind", {"behavior", "critical"})
+    behavior_changed = classification.get("behaviorChanged")
+    if not isinstance(behavior_changed, bool):
+        raise ReportValidationError("behaviorChanged는 boolean이어야 합니다.")
+    operational_impact = require_enum(
+        classification,
+        "operationalImpact",
+        {"none", "material", "critical"},
+    )
+    require_enum(classification, "confidence", {"low", "medium", "high"})
+    require_string_list(classification, "reasons", nonempty=True)
+    files = require_string_list(classification, "files", nonempty=True)
+    evidence = classification.get("evidence")
+    if not isinstance(evidence, list) or not evidence:
+        raise ReportValidationError("evidence는 비어 있지 않은 배열이어야 합니다.")
+    for index, item in enumerate(evidence):
+        item = require_mapping(item, f"evidence[{index}]")
+        path = require_string(item, "path")
+        require_string(item, "claim")
+        if path not in files:
+            raise ReportValidationError("evidence.path는 classification.files에 있어야 합니다.")
+    require_string(classification, "classifierVersion")
+    digest = require_string(classification, "inputDigest")
+    if re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+        raise ReportValidationError("inputDigest는 소문자 SHA-256이어야 합니다.")
+    if not behavior_changed and operational_impact == "none":
+        raise ReportValidationError("동작 또는 운영 영향이 없는 리포트는 포함할 수 없습니다.")
     return classification
 
 
@@ -327,14 +546,14 @@ def render_unit_html(payload: dict) -> str:
 <title>PR #{pr['number']} · {escape(pr['title'])}</title>
 <style>
 :root {{ color-scheme: light; font-family: system-ui, sans-serif; color: #202124; background: #f6f8fa; }}
-body {{ margin: 0 auto; max-width: 920px; padding: 2rem 1rem 4rem; line-height: 1.65; }}
+body {{ margin: 0 auto; max-width: 920px; padding: 2rem 1rem 4rem; line-height: 1.65; overflow-wrap: anywhere; }}
 header, section {{ background: white; border: 1px solid #d0d7de; border-radius: 12px; margin: 1rem 0; padding: 1.25rem; }}
 h1, h2, h3 {{ line-height: 1.25; }}
 .meta, .location {{ color: #59636e; }}
 .overview {{ display: grid; gap: .75rem; }}
 .overview dt {{ font-weight: 700; }}
 .overview dd {{ margin: 0; }}
-.code pre {{ background: #161b22; color: #f0f6fc; overflow-x: auto; padding: 1rem; border-radius: 8px; }}
+.code pre {{ background: #161b22; color: #f0f6fc; overflow-x: auto; overflow-wrap: normal; padding: 1rem; border-radius: 8px; white-space: pre; }}
 blockquote, .finding, .question {{ border-left: 4px solid #8250df; margin: 1rem 0; padding: .25rem 1rem; }}
 .finding {{ border-color: #bf8700; }}
 </style>
@@ -377,14 +596,18 @@ def manifest_entry(payload: dict) -> dict:
         "kind": payload["classification"]["kind"],
         "operationalImpact": payload["classification"]["operationalImpact"],
         "confidence": payload["classification"]["confidence"],
+        "reasons": list(payload["classification"]["reasons"]),
+        "files": list(payload["classification"]["files"]),
     }
 
 
-def render_index_html(entries: list[dict]) -> str:
+def render_index_html(manifest: dict) -> str:
     cards = []
-    for entry in entries:
+    for entry in manifest["reports"]:
         kind = entry["kind"]
         badge_class = "badge critical" if kind == "critical" else "badge"
+        reasons = "".join(f"<li>{escape(reason)}</li>" for reason in entry["reasons"])
+        files = "".join(f"<li><code>{escape(path)}</code></li>" for path in entry["files"])
         cards.append(
             '<article class="card">'
             f'<p><span class="{badge_class}">{escape(kind)}</span> '
@@ -393,26 +616,35 @@ def render_index_html(entries: list[dict]) -> str:
             f"PR #{entry['number']} · {escape(entry['title'])}</a></h2>"
             f"<p>{escape(entry['summary'])}</p>"
             f"<p class=\"meta\">{escape(entry['mergedAt'])} · {render_pr_url(entry['url'])}</p>"
+            f"<h3>포함 이유</h3><ul>{reasons}</ul>"
+            f"<h3>영향 파일</h3><ul>{files}</ul>"
             "</article>"
         )
-    return """<!doctype html>
+    kind_counts = manifest["kindCounts"]
+    impact_counts = manifest["operationalImpactCounts"]
+    return f"""<!doctype html>
 <html lang="ko">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>repo-walk PR 리포트</title>
 <style>
-:root { color-scheme: light; font-family: system-ui, sans-serif; color: #202124; background: #f6f8fa; }
-body { margin: 0 auto; max-width: 920px; padding: 2rem 1rem 4rem; line-height: 1.6; }
-.card { background: white; border: 1px solid #d0d7de; border-radius: 12px; margin: 1rem 0; padding: 1.25rem; }
-.badge { background: #ddf4ff; border-radius: 999px; display: inline-block; padding: .15rem .55rem; }
-.badge.critical { background: #ffebe9; color: #a40e26; }
-.meta { color: #59636e; }
+:root {{ color-scheme: light; font-family: system-ui, sans-serif; color: #202124; background: #f6f8fa; }}
+body {{ margin: 0 auto; max-width: 920px; padding: 2rem 1rem 4rem; line-height: 1.6; overflow-wrap: anywhere; }}
+.card {{ background: white; border: 1px solid #d0d7de; border-radius: 12px; margin: 1rem 0; padding: 1.25rem; }}
+.badge {{ background: #ddf4ff; border-radius: 999px; display: inline-block; padding: .15rem .55rem; }}
+.badge.critical {{ background: #ffebe9; color: #a40e26; }}
+.meta {{ color: #59636e; }}
 </style>
 </head>
 <body>
-<header><h1>repo-walk PR 리포트</h1></header>
-<main>""" + "".join(cards) + """</main>
+<header>
+<h1>{escape(manifest["repository"])} PR 리포트</h1>
+<p class="meta">생성 시각 {escape(manifest["generatedAt"])} · 총 {manifest["reportCount"]}개</p>
+<p>종류: behavior {kind_counts["behavior"]} · critical {kind_counts["critical"]}</p>
+<p>운영 영향: none {impact_counts["none"]} · material {impact_counts["material"]} · critical {impact_counts["critical"]}</p>
+</header>
+<main>{"".join(cards)}</main>
 </body>
 </html>
 """
@@ -420,17 +652,16 @@ body { margin: 0 auto; max-width: 920px; padding: 2rem 1rem 4rem; line-height: 1
 
 def atomic_write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = None
+    handle = NamedTemporaryFile(
+        "w", encoding="utf-8", dir=path.parent, delete=False
+    )
+    temporary = Path(handle.name)
     try:
-        with NamedTemporaryFile(
-            "w", encoding="utf-8", dir=path.parent, delete=False
-        ) as handle:
+        with handle:
             handle.write(content)
-            temporary = Path(handle.name)
         os.replace(temporary, path)
     except BaseException:
-        if temporary is not None:
-            temporary.unlink(missing_ok=True)
+        temporary.unlink(missing_ok=True)
         raise
 
 
@@ -443,16 +674,26 @@ def serialize_json(payload: dict) -> str:
 
 
 def collect_valid_reports(output_root: Path, replacement: dict = None) -> list[dict]:
-    reports_by_number = {}
+    reports = []
     for data_path in sorted((output_root / "data").glob("pr-*.json")):
         try:
             payload = json.loads(data_path.read_text(encoding="utf-8"))
             validated = validate_report(payload)
         except (UnicodeError, json.JSONDecodeError, ReportValidationError):
             continue
-        reports_by_number[validated["pr"]["number"]] = validated
+        except OSError:
+            print("경고: 읽을 수 없는 PR data 항목을 건너뜁니다.", file=sys.stderr)
+            continue
+        reports.append(validated)
     if replacement is not None:
-        reports_by_number[replacement["pr"]["number"]] = replacement
+        reports.append(replacement)
+    repositories = {payload["repository"] for payload in reports}
+    if len(repositories) > 1:
+        raise ReportValidationError("서로 다른 repository 리포트를 합칠 수 없습니다.")
+    reports_by_number = {
+        payload["pr"]["number"]: payload
+        for payload in reports
+    }
     return sorted(
         reports_by_number.values(),
         key=lambda payload: (payload["pr"]["mergedAt"], payload["pr"]["number"]),
@@ -467,19 +708,21 @@ def atomic_replace_text_files(outputs: list[tuple[Path, str]]) -> None:
     try:
         for path, content in outputs:
             path.parent.mkdir(parents=True, exist_ok=True)
-            with NamedTemporaryFile(
+            handle = NamedTemporaryFile(
                 "w", encoding="utf-8", dir=path.parent, delete=False
-            ) as handle:
-                handle.write(content)
-                temporary = Path(handle.name)
+            )
+            temporary = Path(handle.name)
             staged[path] = temporary
+            with handle:
+                handle.write(content)
 
         for path in staged:
             if path.exists():
-                with NamedTemporaryFile("wb", dir=path.parent, delete=False) as handle:
-                    handle.write(path.read_bytes())
-                    backup = Path(handle.name)
+                handle = NamedTemporaryFile("wb", dir=path.parent, delete=False)
+                backup = Path(handle.name)
                 backups[path] = backup
+                with handle:
+                    handle.write(path.read_bytes())
             else:
                 backups[path] = None
 
@@ -515,9 +758,26 @@ def atomic_replace_text_files(outputs: list[tuple[Path, str]]) -> None:
 def index_outputs(output_root: Path, replacement: dict = None) -> tuple[str, str]:
     reports = collect_valid_reports(output_root, replacement)
     entries = [manifest_entry(payload) for payload in reports]
+    kind_counts = {"behavior": 0, "critical": 0}
+    impact_counts = {"none": 0, "material": 0, "critical": 0}
+    for entry in entries:
+        kind_counts[entry["kind"]] += 1
+        impact_counts[entry["operationalImpact"]] += 1
+    manifest = {
+        "schemaVersion": 1,
+        "repository": reports[0]["repository"] if reports else "",
+        "generatedAt": max(
+            (payload["generatedAt"] for payload in reports),
+            default="",
+        ),
+        "reportCount": len(entries),
+        "kindCounts": kind_counts,
+        "operationalImpactCounts": impact_counts,
+        "reports": entries,
+    }
     return (
-        serialize_json({"schemaVersion": 1, "reports": entries}),
-        render_index_html(entries),
+        serialize_json(manifest),
+        render_index_html(manifest),
     )
 
 

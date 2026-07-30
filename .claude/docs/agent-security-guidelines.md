@@ -52,6 +52,9 @@
 - 링크는 정확한 `https://github.com/...` URL만 활성화하고 나머지는 텍스트로
   표시합니다.
 - 정적 HTML에 JavaScript·외부 CSS CDN·원격 리소스를 넣지 않습니다.
+- 같은 output root의 valid data가 서로 다른 repository를 가리키면 manifest나 HTML을
+  수정하기 전에 거부합니다. 개별 data 항목의 읽기 실패는 경로·원문을 노출하지
+  않는 경고와 함께 건너뛰되 output root 쓰기 실패는 계속 실패로 처리합니다.
 - `repo_walk_report.py`는 GitHub나 LLM을 직접 호출하지 않습니다. 원격 접근은
   기존 읽기 전용 `gh` 경계에 남기고, 로컬 JSON 검증·분류·렌더링만 수행합니다.
 - 두 플랫폼의 도구 사본은 Python 표준 라이브러리만 사용합니다. 새로운 외부

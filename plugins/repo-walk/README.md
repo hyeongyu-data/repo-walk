@@ -66,6 +66,12 @@ open .repo-walk/reports/owner-repo/index.html
 dependency·플러그인 매니페스트 같은 critical 후보도 diff 근거가 있을 때만
 포함합니다.
 
+첫 호출은 적격 PR의 최소 메타데이터를 `units`에 저장한 뒤 현재 cursor의 PR
+하나만 해설·렌더링하고 퀴즈를 냅니다. 퀴즈 답변이나 `skip`은 cursor를 한 칸만
+전진시키고 끝나며, 나중의 `next`가 다음 PR 하나를 처리합니다. `index.html`에는
+저장소·생성 시각·총 개수·종류/운영 영향 집계와 카드별 이유·파일이 표시됩니다.
+다른 저장소 data가 같은 출력 root에 섞이면 기존 산출물을 바꾸기 전에 거부합니다.
+
 리포트 모드는 PR 중심 전용이므로 `--timeline`과 함께 사용할 수 없습니다. 리포트
 상태에서 `next` 또는 `skip`을 호출하면 `--report`를 다시 쓰지 않아도 같은 모드를
 이어갑니다.

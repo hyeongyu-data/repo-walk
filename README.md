@@ -135,6 +135,9 @@ $repo-walk:repo-walk owner/repo skip
 
 `--report`는 PR 중심 모드에서만 사용할 수 있으며 `--timeline`과 함께 쓸 수
 없습니다. 다음 순서로 후보를 좁힌 뒤, 통과한 PR에만 `--limit`을 적용합니다.
+첫 호출은 적격 PR의 최소 메타데이터를 상태에 저장한 뒤 `units[cursor]` 하나만
+해설·렌더링하고 회고 퀴즈를 냅니다. 퀴즈 답변이나 `skip`은 cursor를 한 칸만
+전진시키고 끝나며, 이후 `next`가 다음 PR 하나를 처리합니다.
 
 - 닫혔지만 머지되지 않은 PR은 제외합니다.
 - 문서 전용, 테스트 전용, 생성물·vendor 전용 변경은 제외합니다.
@@ -156,7 +159,9 @@ $repo-walk:repo-walk owner/repo skip
 └── index.html
 ```
 
-`index.html`은 생성된 PR별 HTML을 한 번에 요약합니다. 예를 들어
+`index.html`은 저장소·생성 시각·총 리포트 수·종류/운영 영향 집계와 각 PR의 포함
+이유·영향 파일을 한 번에 요약합니다. 같은 출력 root에 다른 저장소 data가 섞이면
+기존 산출물을 바꾸기 전에 거부합니다. 예를 들어
 `owner/repo`의 결과는 macOS에서 다음처럼 열 수 있습니다.
 
 ```bash

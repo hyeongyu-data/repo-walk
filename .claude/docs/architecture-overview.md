@@ -36,8 +36,10 @@ repo-walk는 GitHub 저장소의 역사(커밋·이슈·PR)를 한 단계씩 걸
    cursor를 전진시켜 긴 역사를 여러 세션에 나눠 걷습니다.
 6. **로컬 정적 리포트.** `--report`는 머지된 PR 중 파일 역할과 diff 의미 판정을
    모두 통과한 동작·critical 변경만 저장합니다. PR별 구조화 JSON을 진실의 원천으로
-   두고 PR별 HTML과 전체 `index.html`을 원자적으로 재생성합니다. JavaScript·외부
-   CDN·호스팅 서비스는 사용하지 않습니다.
+   두고 한 호출에 현재 cursor의 PR 하나와 전체 `index.html`을 원자적으로
+   재생성합니다. manifest/index에는 repository·생성 시각·개수·종류/영향도 집계·
+   이유·파일을 보존하며 다른 repository data 혼합은 쓰기 전에 거부합니다.
+   JavaScript·외부 CDN·호스팅 서비스는 사용하지 않습니다.
 7. **독립 패키지, 같은 도구 계약.** Claude용
    `scripts/repo_walk_report.py`와 Codex용
    `plugins/repo-walk/scripts/repo_walk_report.py`는 각 설치 패키지 안에 포함됩니다.
@@ -57,8 +59,9 @@ Codex: repo-walk 스킬 + owner/repo 요청
 
 --report 분기:
     ↓  머지 확인 → 파일 역할 분류 → diff 기반 동작·critical 의미 판정
-    ↓  .repo-walk/reports/<owner>-<repo>/.staging/에 구조화 입력 작성
-    ↓  패키지 내부 repo_walk_report.py가 JSON 검증·HTML escape·원자적 저장
+    ↓  limit 적용 적격 최소 메타데이터 units 저장
+    ↓  units[cursor] 하나만 조회·해설 → .staging/에 strict include JSON 작성
+    ↓  패키지 내부 repo_walk_report.py가 의미 schema 검증·HTML escape·원자적 저장
     ↓  data/pr-N.json + prs/pr-N.html + manifest.json + index.html
 ```
 

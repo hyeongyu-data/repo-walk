@@ -5,6 +5,7 @@ import subprocess
 import sys
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -156,6 +157,77 @@ class RenderingTests(unittest.TestCase):
             report.rebuild_index(root)
             manifest = json.loads((root / "manifest.json").read_text())
             self.assertEqual([23], [entry["number"] for entry in manifest["reports"]])
+
+    def test_json_corrupt_data_is_excluded_when_rebuilding_index(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            report.render_report(self.fixture_payload(23), root)
+            report.render_report(self.fixture_payload(25), root)
+            corrupt_path = root / "data/pr-999.json"
+            corrupt_path.write_text("{broken", encoding="utf-8")
+
+            try:
+                report.rebuild_index(root)
+            except report.ReportValidationError as error:
+                self.fail(f"손상 JSON은 인덱스 재구축을 중단하면 안 됩니다: {error}")
+
+            manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual([25, 23], [entry["number"] for entry in manifest["reports"]])
+            self.assertEqual("{broken", corrupt_path.read_text(encoding="utf-8"))
+
+    def test_schema_corrupt_data_is_excluded_when_rebuilding_index(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            report.render_report(self.fixture_payload(23), root)
+            report.render_report(self.fixture_payload(25), root)
+            corrupt_path = root / "data/pr-999.json"
+            corrupt_path.write_text('{"schemaVersion": 1}', encoding="utf-8")
+
+            try:
+                report.rebuild_index(root)
+            except report.ReportValidationError as error:
+                self.fail(f"스키마 손상은 인덱스 재구축을 중단하면 안 됩니다: {error}")
+
+            manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual([25, 23], [entry["number"] for entry in manifest["reports"]])
+            self.assertEqual(
+                '{"schemaVersion": 1}',
+                corrupt_path.read_text(encoding="utf-8"),
+            )
+
+    def test_render_rolls_back_every_output_when_replacement_fails(self):
+        relative_paths = (
+            Path("data/pr-23.json"),
+            Path("prs/pr-23.html"),
+            Path("manifest.json"),
+            Path("index.html"),
+        )
+        for failing_relative_path in relative_paths:
+            with self.subTest(failing_path=failing_relative_path):
+                with TemporaryDirectory() as directory:
+                    root = Path(directory)
+                    report.render_report(make_report(title="이전 세대"), root)
+                    output_paths = [root / relative_path for relative_path in relative_paths]
+                    before = {path: path.read_bytes() for path in output_paths}
+                    real_replace = report.os.replace
+                    failure_injected = False
+
+                    def replace_with_failure(source, destination):
+                        nonlocal failure_injected
+                        if Path(destination) == root / failing_relative_path and not failure_injected:
+                            failure_injected = True
+                            raise OSError(f"교체 실패 주입: {failing_relative_path}")
+                        return real_replace(source, destination)
+
+                    with patch.object(report.os, "replace", side_effect=replace_with_failure):
+                        with self.assertRaisesRegex(OSError, "교체 실패 주입"):
+                            report.render_report(make_report(title="새 세대"), root)
+
+                    self.assertTrue(failure_injected)
+                    self.assertEqual(
+                        before,
+                        {path: path.read_bytes() for path in output_paths},
+                    )
 
     def test_valid_update_atomically_replaces_existing_file(self):
         with TemporaryDirectory() as directory:

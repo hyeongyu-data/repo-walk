@@ -434,32 +434,100 @@ def atomic_write_text(path: Path, content: str) -> None:
 
 
 def atomic_write_json(path: Path, payload: dict) -> None:
-    content = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
-    atomic_write_text(path, content)
+    atomic_write_text(path, serialize_json(payload))
 
 
-def rebuild_index(output_root: Path) -> Path:
-    output_root = Path(output_root)
+def serialize_json(payload: dict) -> str:
+    return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+
+
+def collect_valid_reports(output_root: Path, replacement: dict = None) -> list[dict]:
     reports_by_number = {}
     for data_path in sorted((output_root / "data").glob("pr-*.json")):
         try:
             payload = json.loads(data_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as error:
-            raise ReportValidationError(f"{data_path}을 읽을 수 없습니다.") from error
-        validated = validate_report(payload)
+            validated = validate_report(payload)
+        except (UnicodeError, json.JSONDecodeError, ReportValidationError):
+            continue
         reports_by_number[validated["pr"]["number"]] = validated
-    reports = sorted(
+    if replacement is not None:
+        reports_by_number[replacement["pr"]["number"]] = replacement
+    return sorted(
         reports_by_number.values(),
         key=lambda payload: (payload["pr"]["mergedAt"], payload["pr"]["number"]),
         reverse=True,
     )
+
+
+def atomic_replace_text_files(outputs: list[tuple[Path, str]]) -> None:
+    staged = {}
+    backups = {}
+    replaced = []
+    try:
+        for path, content in outputs:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with NamedTemporaryFile(
+                "w", encoding="utf-8", dir=path.parent, delete=False
+            ) as handle:
+                handle.write(content)
+                temporary = Path(handle.name)
+            staged[path] = temporary
+
+        for path in staged:
+            if path.exists():
+                with NamedTemporaryFile("wb", dir=path.parent, delete=False) as handle:
+                    handle.write(path.read_bytes())
+                    backup = Path(handle.name)
+                backups[path] = backup
+            else:
+                backups[path] = None
+
+        for path, temporary in staged.items():
+            os.replace(temporary, path)
+            staged[path] = None
+            replaced.append(path)
+    except BaseException as error:
+        rollback_error = None
+        for path in reversed(replaced):
+            try:
+                backup = backups[path]
+                if backup is None:
+                    path.unlink(missing_ok=True)
+                else:
+                    os.replace(backup, path)
+                    backups[path] = None
+            except BaseException as current_error:
+                if rollback_error is None:
+                    rollback_error = current_error
+        if rollback_error is not None:
+            raise rollback_error from error
+        raise
+    finally:
+        for temporary in staged.values():
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
+        for backup in backups.values():
+            if backup is not None:
+                backup.unlink(missing_ok=True)
+
+
+def index_outputs(output_root: Path, replacement: dict = None) -> tuple[str, str]:
+    reports = collect_valid_reports(output_root, replacement)
     entries = [manifest_entry(payload) for payload in reports]
-    atomic_write_json(
-        output_root / "manifest.json",
-        {"schemaVersion": 1, "reports": entries},
+    return (
+        serialize_json({"schemaVersion": 1, "reports": entries}),
+        render_index_html(entries),
     )
+
+
+def rebuild_index(output_root: Path) -> Path:
+    output_root = Path(output_root)
+    manifest_content, index_content = index_outputs(output_root)
     index_path = output_root / "index.html"
-    atomic_write_text(index_path, render_index_html(entries))
+    atomic_replace_text_files([
+        (output_root / "manifest.json", manifest_content),
+        (index_path, index_content),
+    ])
     return index_path
 
 
@@ -467,10 +535,14 @@ def render_report(payload: dict, output_root: Path) -> Path:
     validated = validate_report(payload)
     output_root = Path(output_root)
     number = validated["pr"]["number"]
-    atomic_write_json(output_root / f"data/pr-{number}.json", validated)
     unit_path = output_root / f"prs/pr-{number}.html"
-    atomic_write_text(unit_path, render_unit_html(validated))
-    rebuild_index(output_root)
+    manifest_content, index_content = index_outputs(output_root, validated)
+    atomic_replace_text_files([
+        (output_root / f"data/pr-{number}.json", serialize_json(validated)),
+        (unit_path, render_unit_html(validated)),
+        (output_root / "manifest.json", manifest_content),
+        (output_root / "index.html", index_content),
+    ])
     return unit_path
 
 

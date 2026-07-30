@@ -10,6 +10,7 @@ def is_critical_path(path: str) -> bool:
     return (
         path.startswith((".github/workflows/", "github/workflows/"))
         or path in {".claude-plugin/plugin.json", "claude-plugin/plugin.json"}
+        or path == "codex-plugin/plugin.json"
         or path.endswith(("/.codex-plugin/plugin.json", "/codex-plugin/plugin.json"))
     )
 

@@ -49,6 +49,10 @@ class ClassificationTests(unittest.TestCase):
         result = self.classify([".github/workflows/release.yml"])
         self.assertEqual(("candidate", "critical"), (result["decision"], result["candidateKind"]))
 
+    def test_root_codex_plugin_manifest_is_critical_candidate(self):
+        result = self.classify([".codex-plugin/plugin.json"])
+        self.assertEqual(("candidate", "critical"), (result["decision"], result["candidateKind"]))
+
     def test_incomplete_file_list_requires_review(self):
         result = self.classify(["src/app.py"], changed_files=2)
         self.assertEqual(("review", "incomplete_metadata"), (result["decision"], result["reason"]))

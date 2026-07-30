@@ -155,6 +155,7 @@ class PluginPackageTests(unittest.TestCase):
 
     def test_both_adapters_build_complete_classifier_input_from_gh_metadata(self):
         marker = "`gh pr view` 응답을 `pr` 객체"
+        payloads = {}
         for adapter, source_text in self.adapter_sources().items():
             with self.subTest(adapter=adapter):
                 section = source_text.split(marker, 1)[1]
@@ -165,6 +166,16 @@ class PluginPackageTests(unittest.TestCase):
                 )
                 json_text = section.split("```json", 1)[1].split("```", 1)[0]
                 payload = json.loads(json_text)
+                payloads[adapter] = payload
+                self.assertEqual({"repository", "pr"}, set(payload))
+                self.assertEqual(
+                    {"number", "state", "mergedAt", "changedFiles", "files"},
+                    set(payload["pr"]),
+                )
+                self.assertEqual(
+                    [{"path": "src/example.py"}],
+                    payload["pr"]["files"],
+                )
                 self.assertEqual(123, payload["pr"]["number"])
 
                 with TemporaryDirectory() as directory:
@@ -186,6 +197,7 @@ class PluginPackageTests(unittest.TestCase):
                     "candidate",
                     json.loads(completed.stdout)["decision"],
                 )
+        self.assertEqual(payloads["Claude"], payloads["Codex"])
 
     def test_both_adapters_handle_every_review_reason_conservatively(self):
         required = (
